@@ -6,24 +6,22 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://Pengzna.github.io">
-  <title>博客维护日志 | Pengzna&#39;s Blog</title>
+  <title>软工Ⅱ大作业心得 | Pengzna&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-yilia-plus">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   
-  <meta name="description" content="春天里，努力奔跑">
+  <meta name="description" content="SpringBoot1. 面向接口编程 主要用于代码复用、消除循环依赖、实现拓展等 方法：抽象公共父类（最低阶）、泛型编程（更灵活，根据具体类注入，可以实现参数和实现的多态）。下面以个人项目实践中的根据泛型实现面向接口编程举出实例：">
 <meta property="og:type" content="article">
-<meta property="og:title" content="博客维护日志">
-<meta property="og:url" content="https://pengzna.github.io/2021/10/10/%E5%8D%9A%E5%AE%A2%E8%A3%85%E4%BF%AE%E6%97%A5%E5%BF%97/index.html">
+<meta property="og:title" content="软工Ⅱ大作业心得">
+<meta property="og:url" content="https://pengzna.github.io/2022/07/10/%E8%BD%AF%E5%B7%A5%E2%85%A1%E5%A4%A7%E4%BD%9C%E4%B8%9A%E5%BF%83%E5%BE%97/index.html">
 <meta property="og:site_name" content="Pengzna&#39;s Blog">
-<meta property="og:description" content="春天里，努力奔跑">
+<meta property="og:description" content="SpringBoot1. 面向接口编程 主要用于代码复用、消除循环依赖、实现拓展等 方法：抽象公共父类（最低阶）、泛型编程（更灵活，根据具体类注入，可以实现参数和实现的多态）。下面以个人项目实践中的根据泛型实现面向接口编程举出实例：">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://img13.360buyimg.com/ddimg/jfs/t1/196861/13/12355/1365619/6162c9f6Effa90e15/97b35eeeb602b55f.png">
-<meta property="article:published_time" content="2021-10-10T10:57:20.000Z">
-<meta property="article:modified_time" content="2021-10-17T16:14:57.782Z">
+<meta property="article:published_time" content="2022-07-10T10:57:20.000Z">
+<meta property="article:modified_time" content="2022-07-25T14:04:32.510Z">
 <meta property="article:author" content="Pengzna">
-<meta property="article:tag" content="维护日志">
+<meta property="article:tag" content="学习">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://img13.360buyimg.com/ddimg/jfs/t1/196861/13/12355/1365619/6162c9f6Effa90e15/97b35eeeb602b55f.png">
   
     <link rel="alternative" href="/atom.xml" title="Pengzna&#39;s Blog" type="application/atom+xml">
   
@@ -211,14 +209,14 @@
               class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-博客装修日志" class="article article-type-post " itemscope itemprop="blogPost">
+            <article id="post-软工Ⅱ大作业心得" class="article article-type-post " itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
   
   
     <h1 class="article-title" itemprop="name">
-      博客维护日志
+      软工Ⅱ大作业心得
     </h1>
   
 
@@ -230,8 +228,8 @@
               <i class="icon-smile icon"></i> 阅读数：<span id="busuanzi_value_page_pv"></span>次
         </span>
 
-<a href="/2021/10/10/%E5%8D%9A%E5%AE%A2%E8%A3%85%E4%BF%AE%E6%97%A5%E5%BF%97/" class="archive-article-date">
-        <time datetime="2021-10-10T10:57:20.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-10-10</time>
+<a href="/2022/07/10/%E8%BD%AF%E5%B7%A5%E2%85%A1%E5%A4%A7%E4%BD%9C%E4%B8%9A%E5%BF%83%E5%BE%97/" class="archive-article-date">
+        <time datetime="2022-07-10T10:57:20.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-07-10</time>
 </a>
 
   
@@ -244,7 +242,7 @@
       <!-- 百度字体平台:http://fontstore.baidu.com/static/editor/index.html -->
       <i class="icon-statistics"></i>
       <span class="post-meta-item-text"> 字数统计:</span>
-      <span class="post-count">381字</span>
+      <span class="post-count">2.2k字</span>
     </span>
   </span>
 
@@ -253,7 +251,7 @@
     <span class="post-meta-item-icon">
       <i class="icon-book icon"></i>
       <span class="post-meta-item-text"> 阅读时长≈</span>
-      <span class="post-count">1分</span>
+      <span class="post-count">9分</span>
     </span>
   </span>
 </div>
@@ -264,74 +262,113 @@
   
   <div class="article-entry" itemprop="articleBody">
     
-    <h1 id="春天里，努力奔跑"><a href="#春天里，努力奔跑" class="headerlink" title="春天里，努力奔跑"></a>春天里，努力奔跑</h1><hr>
-<div align="center">
-<img src=https://img12.360buyimg.com/ddimg/jfs/t1/205592/38/11526/1148329/616c41eaEa542980b/a42d6ab6bb99f65b.jpg width="90%" height="auto" align="center"/>
-</div>
-
-
+    <h2 id="SpringBoot"><a href="#SpringBoot" class="headerlink" title="SpringBoot"></a>SpringBoot</h2><h3 id="1-面向接口编程"><a href="#1-面向接口编程" class="headerlink" title="1. 面向接口编程"></a>1. 面向接口编程</h3><ul>
+<li>主要用于代码复用、消除循环依赖、实现拓展等</li>
+<li>方法：抽象公共父类（最低阶）、<strong>泛型编程</strong>（更灵活，根据具体类注入，可以实现参数和实现的多态）。下面以个人项目实践中的根据泛型实现面向接口编程举出实例：</li>
+</ul>
 <hr>
 <span id="more"></span>
 
-<h2 id="2021-08-28"><a href="#2021-08-28" class="headerlink" title="2021.08.28"></a>2021.08.28</h2><ul>
-<li>参考教程和大佬博客，配置hexo</li>
-<li>将hexo博客部署到[GitHub Page](<a target="_blank" rel="noopener" href="https://github.com/Pengzna/Pengzna.github.io">Pengzna/Pengzna.github.io: My personal blog</a>)上</li>
-<li>发表第一篇博客《Peng’s Hello World!》</li>
-</ul>
-<h2 id="2021-08-29-2021-09-13"><a href="#2021-08-29-2021-09-13" class="headerlink" title="2021.08.29 - 2021.09.13"></a>2021.08.29 - 2021.09.13</h2><ul>
-<li>尝试搭配主题（下按时间顺序列出）<ul>
-<li>fluid</li>
-<li>yilia</li>
-<li>butterfly</li>
-<li>yilia-plus</li>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 接口类，通过泛型注入具体参数，实现每个方法的参数多态</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">SheetService</span> &lt;<span class="title">SheetVO</span>, <span class="title">SheetState</span>&gt;</span>&#123;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 创建单据</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> userVO 操作用户</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sheetVO 单据VO</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">makeSheet</span><span class="params">(UserVO userVO, SheetVO sheetVO)</span></span>;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据状态获取单据(state == null 则获取所有单据)</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> state 单据状态</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> 符合条件的所有单据</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">List&lt;SheetVO&gt; <span class="title">getSheetByState</span><span class="params">(SheetState state)</span></span>;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据进货单id进行审批(state == 审批完成&quot;/&quot;审批失败&quot;)</span></span><br><span class="line"><span class="comment">     * 在controller层进行权限控制</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sheetId 单据id</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> state 单据修改后的状态</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">approval</span><span class="params">(String sheetId, SheetState state)</span></span>;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据单据Id搜索单据信息</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sheetId 单据Id</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> 单据</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">SheetVO <span class="title">getSheetById</span><span class="params">(String sheetId)</span></span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 实现类</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">xxxSheetServiceImpl</span> <span class="keyword">implements</span> <span class="title">SheetService</span>&lt;<span class="title">xxxSheetVO</span>, <span class="title">xxxSheetState</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-设计模式"><a href="#2-设计模式" class="headerlink" title="2. 设计模式"></a>2. 设计模式</h3><ul>
+<li>策略模式：<ul>
+<li>将策略方法抽象成接口，用不同的实现类实现它。</li>
+<li>在调用service里组合接口类（而不是具体的实现类），根据情况向接口中注入具体的类。</li>
 </ul>
 </li>
 </ul>
-<h2 id="2021-10-09"><a href="#2021-10-09" class="headerlink" title="2021.10.09"></a>2021.10.09</h2><ul>
-<li>最终决定采用yilia-plus主题</li>
-<li>完成头像、关于我、GitHub/知乎/bilibili等配置</li>
-<li>踩了个坑，在blog根目录修改_config.yilia-plus.yml配置文件虽然会生效，但是会和themes目录下的 _config.yml配置文件冲突</li>
-<li>又踩了个坑，直接修改html、css文件在hexo g是没用的，因为hexo g会自动生成静态网页代码覆盖原有修改</li>
-<li>博客大体搭建完成</li>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 策略接口</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">PromotionStrategy</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据type制定不同的促销策略</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Integer <span class="title">makePromotionStrategy</span><span class="params">(PromotionStrategyVO promotionStrategyVO)</span></span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 实现类略</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// service类（调用strategy）</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> Integer <span class="title">makePromotionStrategy</span><span class="params">(PromotionStrategyVO promotionStrategyVO)</span></span>&#123;</span><br><span class="line">    logger.info(<span class="string">&quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;制定促销策略&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&quot;</span>);</span><br><span class="line">    PromotionStrategy promotionStrategy;</span><br><span class="line">    <span class="comment">// 策略模式</span></span><br><span class="line">    <span class="keyword">switch</span> (promotionStrategyVO.getType())&#123;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">0</span>:</span><br><span class="line">            promotionStrategy = <span class="keyword">new</span> UserPromotionStrategy(promotionStrategyDao, customerDao);</span><br><span class="line">            logger.info(<span class="string">&quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;对不同级别用户制定促销策略...&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&quot;</span>);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">1</span>:</span><br><span class="line">            promotionStrategy = <span class="keyword">new</span> SpecialPricePromotionStrategy(promotionStrategyDao);</span><br><span class="line">            logger.info(<span class="string">&quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;制定特价包（组合商品降价）...&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&quot;</span>);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">2</span>:</span><br><span class="line">            promotionStrategy = <span class="keyword">new</span> TotalAmountPromotionStrategy(promotionStrategyDao);</span><br><span class="line">            logger.info(<span class="string">&quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;针对不同总价制定促销策略...&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&quot;</span>);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">default</span>:</span><br><span class="line">            logger.info(<span class="string">&quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;错误：未指定促销策略类型！&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&quot;</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    logger.info(<span class="string">&quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;完成促销策略制定&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span> promotionStrategy.makePromotionStrategy(promotionStrategyVO);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-定时任务"><a href="#3-定时任务" class="headerlink" title="3. 定时任务"></a>3. 定时任务</h3><ul>
+<li><p>比较简单，主要通过SpringBoot的<code>org.springframework.scheduling.annotation.Scheduled</code> 包实现</p>
+</li>
+<li><p>需要书写<code>cron</code> 表达式，跟Linux系统的cron定时任务语法相似</p>
+</li>
 </ul>
-<h2 id="2021-10-10"><a href="#2021-10-10" class="headerlink" title="2021.10.10"></a>2021.10.10</h2><ul>
-<li><p>完成“随笔”、“生活”标签栏配置</p>
+<h3 id="4-AOP（面向切面编程）"><a href="#4-AOP（面向切面编程）" class="headerlink" title="4. AOP（面向切面编程）"></a>4. AOP（面向切面编程）</h3><ul>
+<li><p>思想：通过预编译方式和运行期间动态代理实现程序功能的统一维护的一种技术。</p>
 <ul>
-<li>要用hexo new page &lt;&gt;命令来创建新menu单</li>
-<li>在yilia-plus主题里，新menu单并不是一个独立的页面，而是通过博客的tag完成自动分类配置</li>
+<li><p>所谓的切面（Aspect），可以简单理解为程序中的共性功能。AOP通过关注程序中的共性功能（面），将其通过一些技术（预编译、代理等）进行统一处理，从而减少代码重复，提高效率。</p>
+</li>
+<li><p>一般认为切面 = 通知 + 切入点</p>
+<ul>
+<li><blockquote>
+<p>切入点是指我们要对哪些 Joinpoint 进行拦截的定义，通俗的说就是<code>被增强类中的被增强的方法</code>，即切入的地方。注意，被增强类中并不是所有的方法都被代理了</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>所谓通知是指拦截到 Joinpoint （被增强的方法）之后所要做的事情就是通知，通俗的说就是<code>对被增强的方法进行增强的代码</code>，即要做的事情</p>
+</blockquote>
+</li>
 </ul>
 </li>
-<li><p>添加Nanyi友链</p>
+<li><p>典型的AOP应用场景有：HTTP request的鉴权授权、日志记录等</p>
 </li>
-<li><p>发表第二篇博客《我的博客之旅》</p>
-</li>
-<li><p>发表第三篇博客《却道天凉好个秋》</p>
-</li>
-<li><p>发表第四篇博客《博客维护日志》</p>
-</li>
-<li><p>购买域名<a target="_blank" rel="noopener" href="http://www.pengzna.top/">www.pengzna.top</a> ，并将其绑定到GitHub Page上</p>
-</li>
-<li><div align="center">
-<img src="https://img13.360buyimg.com/ddimg/jfs/t1/196861/13/12355/1365619/6162c9f6Effa90e15/97b35eeeb602b55f.png" alt="图片替换文本" width="90%" height="auto" align="center" />
-</div></li>
-</ul>
-<h2 id="2021-10-11"><a href="#2021-10-11" class="headerlink" title="2021.10.11"></a>2021.10.11</h2><ul>
-<li>发表第五篇博客《走向共享型对话》</li>
-</ul>
-<h2 id="2021-10-13"><a href="#2021-10-13" class="headerlink" title="2021.10.13"></a>2021.10.13</h2><ul>
-<li>修改网站图标</li>
-</ul>
-<h2 id="2021-10-14"><a href="#2021-10-14" class="headerlink" title="2021.10.14"></a>2021.10.14</h2><ul>
-<li>多次尝试配置基于gitment的评论功能，失败<ul>
-<li>卡在无法登录GitHub账号进行初始化操作</li>
-<li>Error: Bad credentials</li>
 </ul>
 </li>
-<li>头大</li>
+<li><p>使用：</p>
+</li>
 </ul>
-<div align="center">
-<img src=https://img12.360buyimg.com/ddimg/jfs/t1/204649/38/11208/214683/6167fdd3E46302051/0af3c7b67f672e8d.png />
-</div>
+<blockquote>
+<p>Spring Boot使用AOP需要添加spring-boot-starter-aop依赖，如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;dependency&gt;` `&lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;` `&lt;artifactId&gt;spring-boot-starter-aop&lt;/artifactId&gt;` `&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
+</blockquote>
+<p>代码实例：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 表示当前的类是一个配置类</span></span><br><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="comment">//该注解只能用在类上，作用：代表当前类是一个切面类</span></span><br><span class="line"><span class="comment">// 切面 == 通知 +　切入点</span></span><br><span class="line"><span class="meta">@Aspect</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyAdviceConfig</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> joinPoint</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@Before</span>：前置通知 </span></span><br><span class="line"><span class="comment">     * value：切入点表达式  二者加起来构建成为一个切面</span></span><br><span class="line"><span class="comment">     * JoinPoint：连接点：可以理解为两个圆形的切点，从这个切点就可以获取到当前执行的目标类及方法</span></span><br><span class="line"><span class="comment">     * 前置通知和后置通知的参数的都是 JoinPoint， 前置后置通知都没有返回值</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="comment">// 方法级别：具体到某个具体的方法</span></span><br><span class="line">    <span class="comment">// @Before(value = &quot;execution(* com.xxx.xxx.service.impl.*.*(..))&quot;)</span></span><br><span class="line">    <span class="comment">// value值里可以加权限控制，比如public * com.xxx.xxx等</span></span><br><span class="line">    <span class="comment">// 表示service包下的所有类所有方法都执行该前置通知</span></span><br><span class="line">    <span class="meta">@Before(value = &quot;within(com.xxx.xxx.service.*)&quot;)</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">before</span><span class="params">(JoinPoint joinPoint)</span> </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;before开始执行查询.......&quot;</span>);</span><br><span class="line">        System.out.println(<span class="string">&quot;正在执行的目标类是: &quot;</span> + joinPoint.getTarget());</span><br><span class="line">        System.out.println(<span class="string">&quot;正在执行的目标方法是: &quot;</span> + joinPoint.getSignature().getName());</span><br><span class="line">        System.out.println(<span class="string">&quot;正在执行的目标方法参数是: &quot;</span> + joinPoint.getArgs());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 后置通知，属性参数同上面的前置通知</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> joinPoint 前置通知和后置通知独有的参数</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="meta">@After(value = &quot;execution(* com.xxx.xxx.service.impl.*.*(..))&quot;)</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">after</span><span class="params">(JoinPoint joinPoint)</span> </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;after查询结束.......&quot;</span>);</span><br><span class="line">        <span class="comment">// 获取执行目标类和方法名等等</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> proceedingJoinPoint 环绕通知的正在执行中的连接点（这是环绕通知独有的参数）</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> 目标方法执行的返回值</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@Around</span>: 环绕通知，有返回值，环绕通知必须进行放行方法（就相当于拦截器），否则目标方法无法执行)</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="meta">@Around(value = &quot;execution(* com.xxx.xxx.service.impl.*.*(..))&quot;)</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Object <span class="title">aroud</span><span class="params">(ProceedingJoinPoint proceedingJoinPoint)</span> <span class="keyword">throws</span> Throwable </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;aroud环绕通知开始.......&quot;</span>);</span><br><span class="line">        System.out.println(<span class="string">&quot;执行的目标类 = &quot;</span> + proceedingJoinPoint.getTarget());</span><br><span class="line">        System.out.println(<span class="string">&quot;执行的目标方法 = &quot;</span> + proceedingJoinPoint.getSignature().getName());</span><br><span class="line">        <span class="comment">// 必须方法目标方法</span></span><br><span class="line">        Object proceed = proceedingJoinPoint.proceed();</span><br><span class="line">        System.out.println(<span class="string">&quot;aroud环绕通知结束.......&quot;</span>);</span><br><span class="line">        <span class="comment">// 将目标方法的返回值进行返回，否则调用目标方法的方法无法获取到返回值</span></span><br><span class="line">        <span class="keyword">return</span> proceed;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-Bean的装配"><a href="#5-Bean的装配" class="headerlink" title="5. Bean的装配"></a>5. Bean的装配</h3><ul>
+<li><p>这里主要记录踩到的坑，具体的知识点较为庞杂，在本周的学习中进行具体的记录</p>
+</li>
+<li><p>主要是装配时发生了空指针异常，而异常类已经标上了相关注解。百思不得其解，最后发现SpringBoot对bean的装配是自动管理，即不需要程序员手动new。而一旦程序员手动new，SpringBoot即认为程序员接管了装配，不再进行自动配置。而本人的异常即为手动new了对象造成。</p>
+</li>
+</ul>
+<h2 id="MyBatis"><a href="#MyBatis" class="headerlink" title="MyBatis"></a>MyBatis</h2><ul>
+<li>resultType / resultMap<ul>
+<li>用于指定返回类，用途相似，一般用resultType更方便。详细的知识点在之后的文档学习中具体记录。</li>
+</ul>
+</li>
+</ul>
+<h2 id="Jenkins"><a href="#Jenkins" class="headerlink" title="Jenkins"></a>Jenkins</h2><ul>
+<li><p>Agent</p>
+<ul>
+<li>可以简单理解为执行pipeline的环境。一般选择代码构建所需的环境。</li>
+<li><blockquote>
+<p>在配置前端Jenkins时，曾遇到npm: not found错误。原因是Jenkins所在容器未安装nodejs，也并未挂载宿主机的nodejs脚本。解决方法是配置node某个版本（我用的是node: 14)的agent。在agent中执行npm</p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li><p>Pipeline</p>
+<ul>
+<li>简单的说就是Jenkins执行的一个个任务。可以按照环境清理（Image clear）、环境准备（Prepare）、构建（Build）、测试（Test）、打包（Deploy）等步骤细分</li>
+</ul>
+</li>
+<li><p>Docker in docker</p>
+<ul>
+<li>由于我的Jenkins部署在docker中，而有时需要在Jenkins环境下执行docker命令，即（Docker in docker），我是通过挂载宿主机的docker脚本和docker.sock实现的</li>
+</ul>
+</li>
+</ul>
+<h2 id="Gitlab-runner"><a href="#Gitlab-runner" class="headerlink" title="Gitlab-runner"></a>Gitlab-runner</h2><ul>
+<li><p>基本配置</p>
+<ul>
+<li>基本照着网上的教程一路走下来即可。踩的一个大坑是需要手动在配置文件里指定<code>clone_url</code> （仓库的地址）。并且这个地址亲测不能是ci/cd页面给的http地址，必须与仓库url一致（如果是https必须是https）。但是由此在设置<code>artifact</code> 时可能会带来请求拦截问题，目前尚未解决。</li>
+</ul>
+</li>
+<li><p>Volumes</p>
+<ul>
+<li>与上述Jenkins同样，需要挂载宿主机的docker脚本和docker.sock来实现Docker in docker</li>
+</ul>
+</li>
+<li><p>Type</p>
+<ul>
+<li>我用的是docker，没试过shell等其他类型</li>
+</ul>
+</li>
+</ul>
 
     
 
@@ -348,7 +385,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">维护日志</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">学习</a>
         		</li>
       		
 		</ul>
@@ -404,7 +441,7 @@
     <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-     <!-- <img src="//pan.baidu.com/share/qrcode?url=https://pengzna.github.io/2021/10/10/%E5%8D%9A%E5%AE%A2%E8%A3%85%E4%BF%AE%E6%97%A5%E5%BF%97/" alt="微信分享二维码"> -->
+     <!-- <img src="//pan.baidu.com/share/qrcode?url=https://pengzna.github.io/2022/07/10/%E8%BD%AF%E5%B7%A5%E2%85%A1%E5%A4%A7%E4%BD%9C%E4%B8%9A%E5%BF%83%E5%BE%97/" alt="微信分享二维码"> -->
     </div>
 </div>
 
@@ -419,18 +456,18 @@
 
 <nav id="article-nav">
   
-    <a href="/2021/10/11/%E8%B5%B0%E5%90%91%E5%85%B1%E4%BA%AB%E5%9E%8B%E5%AF%B9%E8%AF%9D/" id="article-nav-newer" class="article-nav-link-wrap">
+    <a href="/2022/07/25/a-MVVM-toy-with-TypeScript/" id="article-nav-newer" class="article-nav-link-wrap">
       <i class="icon-circle-left"></i>
       <div class="article-nav-title">
         
-          走向共享型对话
+          a MVVM toy with TypeScript
         
       </div>
     </a>
   
   
-    <a href="/2021/10/10/%E5%8D%B4%E9%81%93%E5%A4%A9%E5%87%89%E5%A5%BD%E4%B8%AA%E7%A7%8B/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">却道天凉好个秋</div>
+    <a href="/2021/10/29/%E4%BD%A0%E5%A5%BD%EF%BC%8C19%E5%B2%81/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">你好，19岁</div>
       <i class="icon-circle-right"></i>
     </a>
   
