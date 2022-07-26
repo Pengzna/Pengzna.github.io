@@ -23,7 +23,7 @@
 <meta property="og:image" content="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/ce1bfeef41514ea59745f713fc49d439.png">
 <meta property="og:image" content="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220726182800342.png">
 <meta property="article:published_time" content="2022-07-26T09:25:32.000Z">
-<meta property="article:modified_time" content="2022-07-26T10:32:21.974Z">
+<meta property="article:modified_time" content="2022-07-26T10:43:27.232Z">
 <meta property="article:author" content="Pengzna">
 <meta property="article:tag" content="学习">
 <meta name="twitter:card" content="summary">
@@ -271,7 +271,7 @@
 <hr>
 <span id="more"></span>
 
-<h2 id="1-发布订阅模式"><a href="#1-发布订阅模式" class="headerlink" title="1. 发布订阅模式"></a>1. 发布订阅模式</h2><p>Redis的发布订阅机制是一种消息通信模式，包括三个部分，发布者（pub）发送消息，订阅者sub）接收信息和<code>Channel</code>，这里的<code>Channel</code>类似于<code>Kafka</code>中的<code>topic</code>的概念。</p>
+<h2 id="1-发布订阅模式"><a href="#1-发布订阅模式" class="headerlink" title="1. 发布订阅模式"></a>1. 发布订阅模式</h2><p>Redis的发布订阅机制是一种消息通信模式，包括三个部分，发布者（pub）发送消息，订阅者（sub）接收信息和<code>Channel</code>，这里的<code>Channel</code>类似于<code>Kafka</code>中的<code>topic</code>的概念。</p>
 <p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/20210702104227710.png" alt="img"></p>
 <p>发布者和订阅者都是<code>Redis</code>客户端，<code>Channel</code>则为<code>Redis</code>服务器端，可以理解为一种特殊的数据<a target="_blank" rel="noopener" href="https://so.csdn.net/so/search?q=%E5%AD%98%E5%82%A8%E7%BB%93%E6%9E%84&spm=1001.2101.3001.7020">存储结构</a>。发布者将消息发送到某个的频道，订阅了这个频道的订阅者就能接收到这条消息。</p>
 <p>Redis客户端可以订阅任意数量的频道。</p>
