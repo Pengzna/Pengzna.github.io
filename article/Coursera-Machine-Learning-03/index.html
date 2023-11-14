@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      Coursera: Machine Learning-03 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Oct 05, 2022
+  </h3>
+  <h1>
+    Coursera: Machine Learning-03
+  </h1>
+  <div class="content markdown-body">
+    <h2 id="3-1-神经网络概论"><a href="#3-1-神经网络概论" class="headerlink" title="3.1. 神经网络概论"></a>3.1. 神经网络概论</h2><ul>
+<li><p>尝试模仿（mimic）人脑</p>
+</li>
+<li><p>用处</p>
+<ul>
+<li>speech -&gt; images -&gt; text(NLP) -&gt; …</li>
+</ul>
+</li>
+<li><p>每个神经元接受一些输入，做一些计算，然后将输出送给下一个神经元</p>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220909155125086.png" alt="image-20220909155125086"></p>
+<ul>
+<li>可以将神经元分为不同层（layer），每层接受相似的输入，输出不同的结果</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220909164348707.png" alt="image-20220909164348707"></p>
+<ul>
+<li><p>神经网络不需要自己进行特征工程，中间的隐藏层即通过输入初始特征来输出更好的特征</p>
+</li>
+<li><p>需要自己决定的是神经网络的架构：即有多少层，每层有多少神经元</p>
+</li>
+</ul>
+<h3 id="3-1-1-一些-notation"><a href="#3-1-1-一些-notation" class="headerlink" title="3.1.1. 一些 notation"></a>3.1.1. 一些 notation</h3><ul>
+<li>方括号上标代表第 x 层</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220910172611765.png" alt="image-20220910172611765"></p>
+<ul>
+<li>每层接受的输入向量上标是上一层的</li>
+<li>$a^{[0]}$一般表示输入向量</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911170844379.png" alt="image-20220911170844379"></p>
+<h3 id="3-1-2-forward-propagation"><a href="#3-1-2-forward-propagation" class="headerlink" title="3.1.2. forward propagation"></a>3.1.2. forward propagation</h3><ul>
+<li>前向传播</li>
+<li>从神经网络层自左向右传播</li>
+</ul>
+<h2 id="3-2-TensorFlow-介绍"><a href="#3-2-TensorFlow-介绍" class="headerlink" title="3.2. TensorFlow 介绍"></a>3.2. TensorFlow 介绍</h2><h3 id="3-2-1-Demo"><a href="#3-2-1-Demo" class="headerlink" title="3.2.1. Demo"></a>3.2.1. Demo</h3><figure class="highlight python"><table><tr><td class="code"><pre><span class="line">x = np.array([[<span class="number">200.0</span>, <span class="number">17.0</span>]])</span><br><span class="line"><span class="comment"># Dense是神经网络一种层的名字</span></span><br><span class="line">layer_1 = Dense(units=<span class="number">3</span>, activation=<span class="string">&#x27;sigmoid&#x27;</span>)</span><br><span class="line"><span class="comment"># a1是一个1 * 3矩阵（张量），通过a1.numpy()可以把它转换为numpy矩阵</span></span><br><span class="line">a1 = layer_1(x)</span><br><span class="line">layer_2 = Dense(units=<span class="number">1</span>, activation=<span class="string">&#x27;sigmoid&#x27;</span>)</span><br><span class="line">a2 = layer_2(x)</span><br><span class="line"></span><br><span class="line"><span class="comment"># Threshold</span></span><br><span class="line"><span class="keyword">if</span> a2 &gt;= <span class="number">0.5</span></span><br><span class="line">	yhat = <span class="number">1</span></span><br><span class="line"><span class="keyword">else</span>:</span><br><span class="line">    yhat = <span class="number">0</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># 法2</span></span><br><span class="line">layer_1 = Dense(units=<span class="number">3</span>, activation=<span class="string">&#x27;sigmoid&#x27;</span>)</span><br><span class="line">layer_2 = Dense(units=<span class="number">1</span>, activation=<span class="string">&#x27;sigmoid&#x27;</span>)</span><br><span class="line">model = Sequential([layer_1, layer_2 ])</span><br><span class="line">x = np.array([[]])</span><br><span class="line">y = np.array([[]])</span><br><span class="line">model.<span class="built_in">compile</span>(...)</span><br><span class="line">model.fit(x,y)</span><br><span class="line">model.predict(x_new)</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-2-Tf-的数据格式"><a href="#3-2-2-Tf-的数据格式" class="headerlink" title="3.2.2. Tf 的数据格式"></a>3.2.2. Tf 的数据格式</h3><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911175020421.png" alt="image-20220911175020421"></p>
+<h3 id="3-2-3-Tensor（张量）"><a href="#3-2-3-Tensor（张量）" class="headerlink" title="3.2.3. Tensor（张量）"></a>3.2.3. Tensor（张量）</h3><ul>
+<li>可以近似理解为一种矩阵</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911175521941.png" alt="image-20220911175521941"></p>
+<h2 id="3-3-Python-向前传播的原理"><a href="#3-3-Python-向前传播的原理" class="headerlink" title="3.3. Python 向前传播的原理"></a>3.3. Python 向前传播的原理</h2><ul>
+<li>forward prop</li>
+<li>手写全连接层（full connected）</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">dense</span>(<span class="params">a_in, W, b, g</span>):</span><br><span class="line">    units = W.shape[<span class="number">1</span>]</span><br><span class="line">    a_out = np.zeros(units)</span><br><span class="line">    <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(units):</span><br><span class="line">        <span class="comment"># W[:,j]是提取出W第j列的写法</span></span><br><span class="line">        <span class="comment"># 通常：大写字母用来表示矩阵，小写字母用来表示向量</span></span><br><span class="line">        w = W[:,j]</span><br><span class="line">        z = np.dot(w, a_in) + b[j]</span><br><span class="line">        a_out[j] = g(z)</span><br><span class="line">    <span class="keyword">return</span> a_out</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">sequential</span>(<span class="params">x</span>):</span><br><span class="line">    a1 = dense(x, W1, b1)</span><br><span class="line">    a2 = dense(a1, W2, b2)</span><br><span class="line">    a3 = dense(a2, W3, b3)</span><br><span class="line">    a4 = dense(a3, W4, b4)</span><br><span class="line">    f_x = a4</span><br><span class="line">    <span class="keyword">return</span> f_x</span><br></pre></td></tr></table></figure>
+
+<h2 id="3-4-AI-和神经网络的关系"><a href="#3-4-AI-和神经网络的关系" class="headerlink" title="3.4. AI 和神经网络的关系"></a>3.4. AI 和神经网络的关系</h2><h3 id="3-4-1-ANI-和-AGI"><a href="#3-4-1-ANI-和-AGI" class="headerlink" title="3.4.1. ANI 和 AGI"></a>3.4.1. ANI 和 AGI</h3><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911194524599.png" alt="image-20220911194524599"></p>
+<h3 id="3-4-2-The-“one-learning-algorithm”-hypothesis"><a href="#3-4-2-The-“one-learning-algorithm”-hypothesis" class="headerlink" title="3.4.2. The “one learning algorithm” hypothesis"></a>3.4.2. The “one learning algorithm” hypothesis</h3><p>科学家发现人脑的可塑性非常强：非常小的一片人脑区域就能做很多事情，比如当把图像输给听觉区域时，听觉区域又会学会识别图像。这带来一个假设：存在一种或几种算法，可以使得机器学习&#x2F;神经网络实现非常多的事情</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911195232097.png" alt="image-20220911195232097"></p>
+<h2 id="3-5-算法中的向量化实现"><a href="#3-5-算法中的向量化实现" class="headerlink" title="3.5. 算法中的向量化实现"></a>3.5. 算法中的向量化实现</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line">X = np.array([[<span class="number">200</span>, <span class="number">17</span>]])</span><br><span class="line">W = np.array([[<span class="number">1</span>, -<span class="number">3</span>, <span class="number">5</span>],</span><br><span class="line">              [-<span class="number">2</span>, <span class="number">4</span>, -<span class="number">6</span>]])</span><br><span class="line">B = np.array([[-<span class="number">1</span>, <span class="number">1</span>, <span class="number">2</span>]])</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">dense</span>(<span class="params">A_in, W, B, g</span>):</span><br><span class="line">    <span class="comment"># np.matmul = matrix multiplication</span></span><br><span class="line">    Z = np.matmul(A_in, W) + B</span><br><span class="line">    A_out = g(z)</span><br><span class="line">    <span class="keyword">return</span> A_out</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911200229967.png" alt="image-20220911200229967"></p>
+<ul>
+<li><p>使用矩阵和向量运算的好处是：可以利用硬件进行并行计算，显著提高运算速度</p>
+</li>
+<li><p>在 TensorFlow 的约定中：一个样本的数据通常在矩阵的行中</p>
+</li>
+</ul>
+<h2 id="3-6-TensorFlow-实现"><a href="#3-6-TensorFlow-实现" class="headerlink" title="3.6. TensorFlow 实现"></a>3.6. TensorFlow 实现</h2><ul>
+<li>tf 编译模型的关键是定义损失函数</li>
+<li>第一步：定义模型</li>
+<li>第二步：使用损失函数编译模型</li>
+<li>第三步：训练模型</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911200855784.png" alt="image-20220911200855784"></p>
+<h3 id="3-6-1-前述基本步骤在-tf-中的对应"><a href="#3-6-1-前述基本步骤在-tf-中的对应" class="headerlink" title="3.6.1. 前述基本步骤在 tf 中的对应"></a>3.6.1. 前述基本步骤在 tf 中的对应</h3><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911201643919.png" alt="image-20220911201643919"></p>
+<ul>
+<li>tf 的 model.fi 通过反向传播实现了梯度下降</li>
+</ul>
+<h2 id="3-7-激活函数详解"><a href="#3-7-激活函数详解" class="headerlink" title="3.7. 激活函数详解"></a>3.7. 激活函数详解</h2><ul>
+<li>一些激活函数</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911203411855.png" alt="image-20220911203411855"></p>
+<h3 id="3-7-1-ReLU"><a href="#3-7-1-ReLU" class="headerlink" title="3.7.1. ReLU"></a>3.7.1. ReLU</h3><ul>
+<li>Rectified Linear Unit 修正线性单元</li>
+<li>计算速度比 sigmoid 更快</li>
+<li>只有左端是趋于 flat 的，因此在梯度下降时比 sigmoid 更有优势，学习速度更快</li>
+<li>一般作为隐藏层的默认激活函数</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911203303924.png" alt="image-20220911203303924"></p>
+<h3 id="3-7-2-softmax"><a href="#3-7-2-softmax" class="headerlink" title="3.7.2. softmax"></a>3.7.2. softmax</h3><ul>
+<li>逻辑回归的泛化</li>
+<li>针对多分类环境</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911205212945.png" alt="image-20220911205212945"></p>
+<h4 id="3-7-2-1-softmax-函数的损失函数"><a href="#3-7-2-1-softmax-函数的损失函数" class="headerlink" title="3.7.2.1. softmax 函数的损失函数"></a>3.7.2.1. softmax 函数的损失函数</h4><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911205507260.png" alt="image-20220911205507260"></p>
+<ul>
+<li>可以和 sigmoid 类比，$a_j$越接近 1，损失越小，这会刺激$a_j$不断接近 1</li>
+</ul>
+<h3 id="3-7-3-如何选择激活函数"><a href="#3-7-3-如何选择激活函数" class="headerlink" title="3.7.3. 如何选择激活函数"></a>3.7.3. 如何选择激活函数</h3><ul>
+<li>sigmoid：二元分类问题，因为神经网络在学习 y&#x3D;1 的概率</li>
+<li>linear：回归</li>
+<li>ReLU：回归，且结果是非负值</li>
+</ul>
+<h3 id="3-7-4-为什么我们需要激活函数"><a href="#3-7-4-为什么我们需要激活函数" class="headerlink" title="3.7.4. 为什么我们需要激活函数"></a>3.7.4. 为什么我们需要激活函数</h3><ul>
+<li>简单来说，如果我们不使用激活函数，那么所有神经网络将变成如同线性回归般的简单计算。多层神经网络不能提供提升计算复杂特征的能力，也不能学习任何比线性函数更复杂的东西，违背了我们创造神经网络的初衷</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911204521409.png" alt="image-20220911204521409"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911204532625.png" alt="image-20220911204532625"></p>
+<h2 id="3-8-多分类"><a href="#3-8-多分类" class="headerlink" title="3.8. 多分类"></a>3.8. 多分类</h2><ul>
+<li>y 是离散的，且可能的取值大于 2 种</li>
+<li>使用 softmax 激活函数</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911210538665.png" alt="image-20220911210538665"></p>
+<ul>
+<li>softmax 函数在这里和其他激活函数的区别是，softmax 函数一次性算出$a_1, a_2, …, a_i$的所有值，并计算出它们的概率。而其他激活函数仅仅只是一次计算出一个。</li>
+</ul>
+<h3 id="3-8-1-使用-tf-实现"><a href="#3-8-1-使用-tf-实现" class="headerlink" title="3.8.1. 使用 tf 实现"></a>3.8.1. 使用 tf 实现</h3><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911210704162.png" alt="image-20220911210704162"></p>
+<ul>
+<li>一种 tf 实现的版本，但是实际上有更好的版本。因此</li>
+</ul>
+<h4 id="3-8-1-1-优化计算精度"><a href="#3-8-1-1-优化计算精度" class="headerlink" title="3.8.1.1. 优化计算精度"></a>3.8.1.1. 优化计算精度</h4><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911211123650.png" alt="image-20220911211123650"></p>
+<ul>
+<li>在输出层使用 linear 激活函数（目的是为了不先计算 a&#x2F;z，而是把整个式子放到最后再统一计算，避免了计算中间值而带来的精度误差），然后在 compile 选项里加上<code>from_logits=True</code></li>
+</ul>
+<h3 id="3-8-2-多标签分类问题"><a href="#3-8-2-多标签分类问题" class="headerlink" title="3.8.2. 多标签分类问题"></a>3.8.2. 多标签分类问题</h3><ul>
+<li>multi-label classification problem</li>
+<li>输出是一个标签向量，表示是否包含某个向量</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911212040447.png" alt="image-20220911212040447"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911212149890.png" alt="image-20220911212149890"></p>
+<h2 id="3-9-Adam-算法"><a href="#3-9-Adam-算法" class="headerlink" title="3.9. Adam 算法"></a>3.9. Adam 算法</h2><ul>
+<li><p>Adaptive Moment estimation，自适应矩估计</p>
+</li>
+<li><p>可以自动调整学习率$\alpha$</p>
+</li>
+<li><p>对于不同模型使用不同$\alpha$</p>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911212752093.png" alt="image-20220911212752093"></p>
+<h3 id="3-9-1-使用"><a href="#3-9-1-使用" class="headerlink" title="3.9.1. 使用"></a>3.9.1. 使用</h3><figure class="highlight python"><table><tr><td class="code"><pre><span class="line">model = Sequential([</span><br><span class="line">    Dense(units=<span class="number">25</span>, activation=<span class="string">&#x27;sigmoid&#x27;</span>)</span><br><span class="line">    Dense(units=<span class="number">15</span>, activation=<span class="string">&#x27;sigmoid&#x27;</span>)</span><br><span class="line">    Dense(units=<span class="number">10</span>, activation=<span class="string">&#x27;linear&#x27;</span>)</span><br><span class="line">])</span><br><span class="line"></span><br><span class="line">model.<span class="built_in">compile</span>(optimizer=Adam(learning_rate=le-<span class="number">3</span>),                loss=SparseCategoricalCrossentropy(from_logits=<span class="literal">True</span>))</span><br><span class="line"></span><br><span class="line">model.fit(X,Y,epochs=<span class="number">100</span>)</span><br></pre></td></tr></table></figure>
+
+<p>在 compile 里面加一个优化器参数即可，然后设置一个默认的学习率</p>
+<h2 id="3-10-Layer-Types"><a href="#3-10-Layer-Types" class="headerlink" title="3.10. Layer Types"></a>3.10. Layer Types</h2><h3 id="3-10-1-Dense-layer"><a href="#3-10-1-Dense-layer" class="headerlink" title="3.10.1. Dense layer"></a>3.10.1. Dense layer</h3><p>全连接层，接受前一层的所有激活，然后通过一个激活函数得到它自己的输出</p>
+<h3 id="3-10-2-Convolutional-Layer"><a href="#3-10-2-Convolutional-Layer" class="headerlink" title="3.10.2. Convolutional Layer"></a>3.10.2. Convolutional Layer</h3><p>卷积层</p>
+<ul>
+<li><p>每一个神经元只关注**<em>part of</em>**前一层的输出</p>
+</li>
+<li><p>优点：</p>
+<ul>
+<li>计算更快</li>
+<li>所需的训练数据更少，也更不容易过拟合</li>
+</ul>
+</li>
+<li><p>例子<img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220911213905765.png" alt="image-20220911213905765"></p>
+</li>
+<li><p>可选择参数：每层的神经元数，每个神经元得到的输入数量</p>
+</li>
+</ul>
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/Coursera-Machine-Learning-02/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/Coursera-Machine-Learning-04/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>

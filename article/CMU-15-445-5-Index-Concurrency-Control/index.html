@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      CMU 15-445: 5. Index Concurrency Control 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Oct 27, 2022
+  </h3>
+  <h1>
+    CMU 15-445: 5. Index Concurrency Control
+  </h1>
+  <div class="content markdown-body">
+    <h2 id="5-2-Lock-Latches"><a href="#5-2-Lock-Latches" class="headerlink" title="5.2. Lock &amp; Latches"></a>5.2. Lock &amp; Latches</h2><ul>
+<li><p>Lock：</p>
+<p>是一个高层，逻辑上的原语，其在事务之间保护数据库的内容。</p>
+<ul>
+<li><p>保护数据库中的逻辑内容</p>
+<ul>
+<li>逻辑内容可以是 tuple、tuple set、table、db</li>
+</ul>
+</li>
+<li><p>一个 txn(transaction 的简写)会<strong>全程</strong>持有 lock</p>
+</li>
+<li><p>在查询执行时，数据库可以将 lock 暴露给用户</p>
+</li>
+<li><p>lock 需要能够回滚变化，比如说，如果一个被 lock 锁上的 tuple 被修改了，这次修改可以回滚</p>
+</li>
+</ul>
+</li>
+<li><p>Latch(有时又叫 mutex)：</p>
+<p>是一个底层保护原语，在线程之间，其用来保护 DBMS 内部数据结构的关键区域(比如，数据结构，内存区域)</p>
+<ul>
+<li><p>latch 只有在操作执行的时候才会持有</p>
+</li>
+<li><p>latch 并不需要能够回滚数据，因为 latch 所尝试进行的操作本质上是原子性操作</p>
+</li>
+<li><p>存在两种 latch mode</p>
+<ul>
+<li><strong>READ：</strong>多个线程可以同时读，也就是线程可以持有<strong>read latch</strong>，即使是其他线程也持有<strong>read latch</strong></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>WRITE：</strong>对于<strong>write latch</strong>，当一个 thread 持有时，其他 thread 就不能持有</p>
+</li>
+</ul>
+<h3 id="5-2-1-Latch-的实现"><a href="#5-2-1-Latch-的实现" class="headerlink" title="5.2.1. Latch 的实现"></a>5.2.1. Latch 的实现</h3><ul>
+<li>Blocking OS Mutex</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220929123045453.png" alt="image-20220929123045453"></p>
+<ul>
+<li>Test-and-Set Spin Latch</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220929123101195.png" alt="image-20220929123101195"></p>
+<ul>
+<li>Reader-Writer Latches</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220929123141190.png" alt="image-20220929123141190"></p>
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/mlmz/p/15935749.html">CMU15445 Lecture 9 Index Concurrency Control - 抿了抿嘴丶 - 博客园 (cnblogs.com)</a></p>
+<ul>
+<li>其实正式的读写线程调度取决于上下文和使用策略。不能一昧的读优先，因为这样可能造成写进程 starvation。</li>
+</ul>
+<h3 id="5-2-2-Hash-Table-Latching"><a href="#5-2-2-Hash-Table-Latching" class="headerlink" title="5.2.2. Hash Table Latching"></a>5.2.2. Hash Table Latching</h3><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20221022165348816.png" alt="image-20221022165348816"></p>
+<ul>
+<li><p>区别是 latches 的粒度，后者更小。</p>
+<ul>
+<li>前者方便，但减少并行性：因为无法让两个线程同时操作不同的 slot</li>
+<li>后者并行性更高。付出的代价更高：因为扫描每个 slot 都要获取 latch</li>
+</ul>
+</li>
+<li><p>在 hash table 中，由于线程都是从上往下（同方向）扫描，因此不用考虑死锁的问题</p>
+<ul>
+<li>即来自另一个方向的线程在我争抢该处写锁前就将内容修改，无法保证数据一致性，即前一条线程刚修改完，但我之前刚通过读锁读了数据，修改的数据是在原来的数据上进行的，此时，如果不重新读，事务会出现问题，所以就需要做更多考虑了，如果都是从上往下的，那就无须考虑这点</li>
+</ul>
+</li>
+</ul>
+<h3 id="5-2-3-B-Tree-Latching"><a href="#5-2-3-B-Tree-Latching" class="headerlink" title="5.2.3. B+ Tree Latching"></a>5.2.3. B+ Tree Latching</h3><ul>
+<li><p>这里的情况更复杂。比如有一条线程可能正在遍历 B+Tree，接着在它到达叶子结点之前，另一条线程对 B+Tree 进行了修改，这引起了节点间的拆分与合并。使得 B+Tree 中节点的位置可能会有所移动，我所查找的数据可能就并不在原来的位置上了，甚至在最糟糕的情况下，指针指向了内存中的一个无效内存地址，导致 segmentation fault，并且程序崩溃。</p>
+</li>
+<li><p>如何处理？</p>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20221022203308518.png" alt="image-20221022203308518"></p>
+<ul>
+<li>即 latch crabbing 或者 latch doubling<ul>
+<li>一种允许多条线程在同一时间访问 B+ Tree 的技术</li>
+<li>在任何时候，当我们在一个节点中时，我们必须在该节点上挂一个 latch，不管是写模式还是读模式的 latch 都可以。</li>
+<li>接着，在我们跳到我们的孩子节点之前，我们要拿到我们孩子节点上的 latch，以及我们想要到达的下一个节点的 latch。</li>
+<li>然后，当我们落到那个孩子节点上时，我们要对它里面的内容进行测试。如果我们判断出来移到到该孩子节点是安全的话，那么，对我们来说将父节点上的 latch 释放掉是 ok 的。<ul>
+<li>如何判断安全？<ul>
+<li>如果我们要进行一次修改，我们所在的节点无须进行拆分或合并操作，也不用去管在它下面所发生的事情</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20221022203812729.png" alt="image-20221022203812729"></p>
+<ul>
+<li>例子</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20221022204015361.png" alt="image-20221022204015361"></p>
+<ul>
+<li>A -&gt; B：不安全，不释放 A latch</li>
+<li>B -&gt; D：安全，因为 D 已满（相反，如果是 insert 操作，则 D 不满才是安全的），不管 D 下面发生了什么，都不会影响到 B 和 A，可以释放 B 和 A 的 latches</li>
+<li>D -&gt; H：安全，释放 D 的 latch，删除完后，释放 H</li>
+</ul>
+<p>基本上来讲，在 B+Tree 中，当线程往下进行遍历时，线程会通过一个 stack 来保存它一路上所持有的 latch</p>
+<p>在某个时间点，当我在一个安全的节点处时，我就可以释放掉该节点之前所有节点上的 latch</p>
+<ul>
+<li>注意：释放时：想尽量快的先释放更上层的 latch，因为这样可以尽快减小 latch 对其他线程的影响。但是由于是栈结构，所以还是 FILO</li>
+</ul>
+<h3 id="5-2-4-乐观和悲观"><a href="#5-2-4-乐观和悲观" class="headerlink" title="5.2.4. 乐观和悲观"></a>5.2.4. 乐观和悲观</h3><ul>
+<li>但是这样的锁机制存在着一个问题：每个线程访问 B+树时都需要在根节点获得 write latch。但是 W latch 是独占的，会造成并发性的性能瓶颈。</li>
+<li>因此会有乐观锁：<ul>
+<li>乐观地假设我不会去进行任何拆分操作，向下访问 B+Tree 的时候，我所采用的是 read latch，而不是 write latch。然后，我在对叶子节点进行处理时，会使用 write latch。</li>
+<li>如果我判断出我并不需要进行拆分的话，that’s good. 如果我在进行拆分或合并操作时犯错了，那么，我直接终止操作，并在根节点处重启该操作，在向下遍历的时候获取 write latch</li>
+<li>这样可以有效避免，非拆分合并操作占用非叶子结点 W latch 造成性能瓶颈的情况：因为非拆分合并操作不会造成非叶子结点的变化</li>
+</ul>
+</li>
+</ul>
+<h2 id="5-3-Observation"><a href="#5-3-Observation" class="headerlink" title="5.3. Observation"></a>5.3. Observation</h2><ul>
+<li><p>目前所有的遍历都是从上到下。如果有从左到右的遍历呢？</p>
+</li>
+<li><p>如果是 Write 操作，可能会存在死锁问题</p>
+</li>
+<li><p>解决方法：中断其中之一</p>
+</li>
+</ul>
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/CMU-15-445-3-Hash-Table/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/CMU-15-445-6-Query-Execution/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>

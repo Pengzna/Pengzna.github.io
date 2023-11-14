@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      Coursera: Machine Learning-04 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Oct 05, 2022
+  </h3>
+  <h1>
+    Coursera: Machine Learning-04
+  </h1>
+  <div class="content markdown-body">
+    <h2 id="4-1-评价-ml-系统"><a href="#4-1-评价-ml-系统" class="headerlink" title="4.1. 评价 ml 系统"></a>4.1. 评价 ml 系统</h2><ul>
+<li>计算测试误差的函数就是减去正则化项的损失函数</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220912140823902.png" alt="image-20220912140823902"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220912141619989.png" alt="image-20220912141619989"></p>
+<h3 id="4-1-1-选择模型"><a href="#4-1-1-选择模型" class="headerlink" title="4.1.1. 选择模型"></a>4.1.1. 选择模型</h3><ul>
+<li>把数据集分为训练集、测试集和交叉验证集<ul>
+<li>中心思想：更加公平（不是更加准确）</li>
+</ul>
+</li>
+<li>先选择交叉验证误差最小的模型</li>
+<li>可以使用测试集误差来代表泛化误差，评估模型的泛化误差</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220912143933334.png" alt="image-20220912143933334"></p>
+<p><em>训练集在不同的模型上拟合出每个模型的最优 WB_，_交叉验证集用来选择不同的模型_，_测试集用来检验该模型的好坏效果（误差）</em></p>
+<h3 id="4-1-2-诊断模型"><a href="#4-1-2-诊断模型" class="headerlink" title="4.1.2. 诊断模型"></a>4.1.2. 诊断模型</h3><ul>
+<li><p>如何决定第二步做什么，以提高学习的效果</p>
+</li>
+<li><p>方法：观察算法的偏差和方差（Bias and Variance）</p>
+</li>
+<li><p>$J_{train}$很高时，往往意味着 Bias 高（欠拟合）</p>
+</li>
+<li><p>$J_{cv}$高时，且$J_{cv}$比$J_{train}$高很多时，往往意味着 Variance 高（过拟合）</p>
+</li>
+</ul>
+<p>$J_{cv}$和$J_{train}$都比较低时，是比较理想的</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220912145232640.png" alt="image-20220912145232640"></p>
+<h3 id="4-1-4-选择正则化参数-λ"><a href="#4-1-4-选择正则化参数-λ" class="headerlink" title="4.1.4. 选择正则化参数 λ"></a>4.1.4. 选择正则化参数 λ</h3><p>λ ~ w 的值 ~ J</p>
+<ul>
+<li>测试过程如下，选择$J_{cv}$最小的模型</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220912150559968.png" alt="image-20220912150559968"></p>
+<ul>
+<li>λ 和$J$的关系</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220912150827232.png" alt="image-20220912150827232"></p>
+<h3 id="4-1-4-如何评价模型错误率"><a href="#4-1-4-如何评价模型错误率" class="headerlink" title="4.1.4. 如何评价模型错误率"></a>4.1.4. 如何评价模型错误率</h3><ul>
+<li>与其直接看误差，不如以人类水平为基准进行评判</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220912151316029.png" alt="image-20220912151316029"></p>
+<h4 id="4-1-4-1-性能基准"><a href="#4-1-4-1-性能基准" class="headerlink" title="4.1.4.1. 性能基准"></a>4.1.4.1. 性能基准</h4><ul>
+<li>人类水平（常用于非结构化数据，如图像、语音、文本）</li>
+<li>竞争对手的算法表现</li>
+<li>经验</li>
+</ul>
+<hr>
+<ul>
+<li>基准线水平</li>
+<li>训练误差($J_{train}$)</li>
+<li>交叉验证误差($J_{cv}$)</li>
+<li>前两者之间的差 indicates <strong>bias</strong>，后两者之间的差 indicates <strong>variance</strong></li>
+</ul>
+<p>一般 4%以上的差距就认为很大了</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220912151730402.png" alt="image-20220912151730402"></p>
+<h3 id="4-1-5-学习曲线"><a href="#4-1-5-学习曲线" class="headerlink" title="4.1.5. 学习曲线"></a>4.1.5. 学习曲线</h3><h4 id="4-1-5-1-debug-算法的方法"><a href="#4-1-5-1-debug-算法的方法" class="headerlink" title="4.1.5.1. debug 算法的方法"></a>4.1.5.1. debug 算法的方法</h4><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>解决</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>更多训练集</td>
+<td>高方差</td>
+</tr>
+<tr>
+<td>尝试更小的特征集</td>
+<td>高方差</td>
+</tr>
+<tr>
+<td>增加特征</td>
+<td>高偏差</td>
+</tr>
+<tr>
+<td>增加多项式项数</td>
+<td>高偏差</td>
+</tr>
+<tr>
+<td>减少 λ</td>
+<td>高偏差</td>
+</tr>
+<tr>
+<td>增加 λ</td>
+<td>高方差</td>
+</tr>
+</tbody></table>
+<hr>
+<h4 id="4-1-5-2-神经网络应用"><a href="#4-1-5-2-神经网络应用" class="headerlink" title="4.1.5.2. 神经网络应用"></a>4.1.5.2. 神经网络应用</h4><p>我们往往需要在 keep a balance between bias and variance. 但是神经网络给我们提供了一个全新的视角和方法。它可以自动帮我们完成权衡。具体解释如下：</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220912152954919.png" alt="image-20220912152954919"></p>
+<ul>
+<li>tf 代码</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220912153956951.png" alt="image-20220912153956951"></p>
+<h4 id="4-1-5-误差分析"><a href="#4-1-5-误差分析" class="headerlink" title="4.1.5 误差分析"></a>4.1.5 误差分析</h4><ul>
+<li>人工检查 100 个数据集，并将它们按照共同特征分类</li>
+<li>然后进行一些针对性补丁，比如添加一些更加具有针对性的数据集</li>
+</ul>
+<h2 id="4-2-数据增强"><a href="#4-2-数据增强" class="headerlink" title="4.2. 数据增强"></a>4.2. 数据增强</h2><ul>
+<li>Data argumentation</li>
+<li>通过已有的训练集来进行新的训练：比如把训练集 A image 进行一些变化，然后重新进行训练（人为的增大训练集）<ul>
+<li>注意：对数据所作的改变和扭曲，应该是测试集中噪声或变形的代表<ul>
+<li>随机无意义的噪声和扭曲是没有意义的</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>广泛的应用于图像和音频中</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220913145331970.png" alt="image-20220913145331970"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220913145418719.png" alt="image-20220913145418719"></p>
+<h2 id="4-3-迁移学习"><a href="#4-3-迁移学习" class="headerlink" title="4.3. 迁移学习"></a>4.3. 迁移学习</h2><ul>
+<li>可以用来自不同任务的数据完成学习</li>
+<li>应对数据少或数据难以获取的情况</li>
+</ul>
+<p>以下图为例：先在有 1 million 个数据的训练集上训练出可以识别 1000 个类别的神经网络（比如猫、狗等等…），随后保持上述神经网络除了 output 层外的参数不变（把上述神经网络除了 output 层 copy 一遍），迁移到拟训练的数据集上进行训练。训练有两种选择：</p>
+<ul>
+<li>只训练 output 层的参数</li>
+<li>训练所有参数。但是以 copy 的神经网络参数作为初始值</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220913151057762.png" alt="image-20220913151057762"></p>
+<ul>
+<li>先在大型数据集上进行训练，然后在较小的数据集上进一步参数调优，这两个步骤称为<strong>监督预训练</strong>（supervised pretraining）</li>
+<li>然后运行梯度下降等算法在新数据集上，进行<strong>微调</strong>（fine tuning）</li>
+</ul>
+<p>需要注意的是：预训练的神经网络必须和最终需要的神功网络是同一类型的。比如要训练图像相关的神经网络，必须使用图像相关的预训练神经网络</p>
+<h2 id="4-4-构建-ml-系统的周期"><a href="#4-4-构建-ml-系统的周期" class="headerlink" title="4.4. 构建 ml 系统的周期"></a>4.4. 构建 ml 系统的周期</h2><ol>
+<li>确定项目范围</li>
+<li>收集数据</li>
+<li>训练模型</li>
+<li>部署模型</li>
+</ol>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220913152206879.png" alt="image-20220913152206879"></p>
+<h3 id="4-4-1-MLOps"><a href="#4-4-1-MLOps" class="headerlink" title="4.4.1. MLOps"></a>4.4.1. MLOps</h3><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220913153544268.png" alt="image-20220913153544268"></p>
+<ul>
+<li>有点类似 DevOps</li>
+</ul>
+<h2 id="4-5-数据倾斜"><a href="#4-5-数据倾斜" class="headerlink" title="4.5. 数据倾斜"></a>4.5. 数据倾斜</h2><ul>
+<li>评价一个罕见类的学习算法性能<ul>
+<li>构造混淆矩阵（2 * 2 矩阵）</li>
+<li>精度（Precision）：评价算法是否准确：当算法诊断有病时，确诊的概率</li>
+<li>召回率（Recall）：评价算法对真正病人是否有用（样本中的正例有多少被预测正确了或找的全）</li>
+</ul>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220913155045987.png" alt="image-20220913155045987"></p>
+<h3 id="4-5-1-Trade-off-between-P-and-R"><a href="#4-5-1-Trade-off-between-P-and-R" class="headerlink" title="4.5.1. Trade off between P and R"></a>4.5.1. Trade off between P and R</h3><p>提高 threshold 会提高 Precision，降低 Recall</p>
+<ul>
+<li>建议根据具体的应用场景进行权衡</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220913160656496.png" alt="image-20220913160656496"></p>
+<h4 id="4-5-1-1-F-score"><a href="#4-5-1-1-F-score" class="headerlink" title="4.5.1.1. F score"></a>4.5.1.1. F score</h4><ul>
+<li>权衡 Recall 和 Precision 的参数</li>
+</ul>
+<p>$$<br>F_1 \ scrore &#x3D; \frac{1}{\frac{1}{2}(\frac{1}{P} + \frac{1}{R})} &#x3D; 2\frac{PR}{P+R}<br>$$</p>
+<ul>
+<li>这个式子会关注二者中较小的部分（其实就是 P 和 R 的调和平均值）</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220913161128892.png" alt="image-20220913161128892"></p>
+<h2 id="4-6-决策树"><a href="#4-6-决策树" class="headerlink" title="4.6. 决策树"></a>4.6. 决策树</h2><ul>
+<li>Decision Tree</li>
+</ul>
+<h3 id="4-6-1-步骤"><a href="#4-6-1-步骤" class="headerlink" title="4.6.1. 步骤"></a>4.6.1. 步骤</h3><ul>
+<li>选择根节点的特征</li>
+<li>选择在每个节点上区分的特征（为了最大化的分类，保证分类纯度 purity）</li>
+<li>何时停止树的划分（stop splitting）<ul>
+<li>当结点里 100%都是同一类</li>
+<li>当分裂（split）结点会导致树超过最大深度</li>
+<li>当分裂（split）后对纯度产生的增益小于阈值（threshold）</li>
+<li>当结点里 examples 的数量小于阈值（threshold）</li>
+</ul>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220914111707277.png" alt="image-20220914111707277"></p>
+<h3 id="4-6-2-熵"><a href="#4-6-2-熵" class="headerlink" title="4.6.2. 熵"></a>4.6.2. 熵</h3><ul>
+<li>entropy</li>
+<li>度量样本不纯程度</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220914112420889.png" alt="image-20220914112420889"></p>
+<p>$$<br>p_0 \ &#x3D; \ 1\ - \ p_1 \<br>H(p_1) &#x3D; -p_1log_2(p_1) - p_0log_2(p_0) \<br>\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  &#x3D; -p_1log_2(p_1) - (1-p_1)log_2(1-P_1) \<br>Note: 0log(0) &#x3D; 0<br>$$</p>
+<h4 id="4-6-2-1-如何利用熵度量-node"><a href="#4-6-2-1-如何利用熵度量-node" class="headerlink" title="4.6.2.1. 如何利用熵度量 node"></a>4.6.2.1. 如何利用熵度量 node</h4><ul>
+<li>使用加权平均。因为我们认为分到了较多 examples 的分支的熵是更重要的</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220914113505023.png" alt="image-20220914113505023"></p>
+<h4 id="4-6-2-2-信息增益"><a href="#4-6-2-2-信息增益" class="headerlink" title="4.6.2.2. 信息增益"></a>4.6.2.2. 信息增益</h4><p>根节点的熵 - 子节点的加权平均熵</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220914113723924.png" alt="image-20220914113723924"></p>
+<ul>
+<li>计算公式</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220914113852006.png" alt="image-20220914113852006"></p>
+<h3 id="4-6-4-Decision-Tree-Learning"><a href="#4-6-4-Decision-Tree-Learning" class="headerlink" title="4.6.4. Decision Tree Learning"></a>4.6.4. Decision Tree Learning</h3><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220914114051924.png" alt="image-20220914114051924"></p>
+<ul>
+<li>building decision tree 是一个递归过程</li>
+</ul>
+<h3 id="4-6-5-one-hot-编码"><a href="#4-6-5-one-hot-编码" class="headerlink" title="4.6.5. one-hot 编码"></a>4.6.5. one-hot 编码</h3><p>用于处理不止 2 种取值的离散变量</p>
+<ul>
+<li>如果一个分类特征有 k 种可能的取值，那么把这 k 种特征按照 0、1 进行编码取值</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220914120302571.png" alt="image-20220914120302571"></p>
+<ul>
+<li><p>如果看任何一行，总有一个特征是 1，因此称之为 one-hot（独热）编码</p>
+</li>
+<li><p>one-hot 编码不仅适用于决策树，还适用于神经网络</p>
+</li>
+</ul>
+<h3 id="4-6-6-处理连续变量"><a href="#4-6-6-处理连续变量" class="headerlink" title="4.6.6. 处理连续变量"></a>4.6.6. 处理连续变量</h3><ul>
+<li><p>对连续变量进行划分处理（分类），即将连续变量区间设置阈值，将其分为 2 个子集</p>
+</li>
+<li><p>分类的标准是谁贡献了更大的信息增益</p>
+</li>
+<li><p>一般划分值的候选方法是：将值 list 排序，然后取所有值之间的中点</p>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220914140944926.png" alt="image-20220914140944926"></p>
+<h2 id="4-7-回归预测中的决策树"><a href="#4-7-回归预测中的决策树" class="headerlink" title="4.7. 回归预测中的决策树"></a>4.7. 回归预测中的决策树</h2><ul>
+<li>决策树会根据叶子结点中样本数据的平均值做出预测</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220914141648061.png" alt="image-20220914141648061"></p>
+<ul>
+<li><p>在回归预测中，决定结点选择哪种划分策略的标准不再是熵，而是<strong>带权方差</strong>（variance）</p>
+</li>
+<li><p>就像最终决策树的衡量公式是信息增益，我们在这里计算的也实际上是方差减少量</p>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220914142137648.png" alt="image-20220914142137648"></p>
+<h2 id="4-8-决策树集合"><a href="#4-8-决策树集合" class="headerlink" title="4.8. 决策树集合"></a>4.8. 决策树集合</h2><ul>
+<li><p>使用单个决策树的缺点是：其对数据的微小变化非常敏感。(一旦数据微小变化，那么结点的信息增益可能会变化很多，从而导致决策树变的完全不同)</p>
+<ul>
+<li>解决方法：构建更多的决策树，即决策树集合，使得预测结果更健壮</li>
+</ul>
+</li>
+<li><p>使用树集合，然后都运行数据，进行预测。多数的结果即为预测结果。</p>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220914143400270.png" alt="image-20220914143400270"></p>
+<h3 id="4-8-1-有放回抽样"><a href="#4-8-1-有放回抽样" class="headerlink" title="4.8.1. 有放回抽样"></a>4.8.1. 有放回抽样</h3><ul>
+<li>Sampling with replacement</li>
+</ul>
+<h3 id="4-8-2-随机森林算法"><a href="#4-8-2-随机森林算法" class="headerlink" title="4.8.2. 随机森林算法"></a>4.8.2. 随机森林算法</h3><h4 id="4-8-2-1-袋装决策树算法"><a href="#4-8-2-1-袋装决策树算法" class="headerlink" title="4.8.2.1. 袋装决策树算法"></a>4.8.2.1. 袋装决策树算法</h4><ul>
+<li>对于一个大小为 m 的训练集<ul>
+<li>使用有放回抽样获得同样大小为 m 的训练集，然后训练出一个决策树</li>
+<li>重复以上过程直到训练出需要的决策树数量（一般是 100，记为**<em>B</em>**）</li>
+</ul>
+</li>
+<li>问题<ul>
+<li>根节点及其附近的特征仍然相似</li>
+<li>导致算法不够精确，需要改进</li>
+</ul>
+</li>
+</ul>
+<h4 id="4-8-2-2-改进成随机森林算法"><a href="#4-8-2-2-改进成随机森林算法" class="headerlink" title="4.8.2.2. 改进成随机森林算法"></a>4.8.2.2. 改进成随机森林算法</h4><ul>
+<li>在每个结点中，当需要选择一个特征来 split node 时，如果有 n 个特征可以选择，那么我们每次<strong>随机选择</strong>k（k &lt; n ）个特征构成 n 个特征的子集，让算法在这个子集中进行选择（即计算信息增益然后进行 split）</li>
+<li>比单一决策树更健壮的原因是：随机森林算法探索了更多训练集微小变化的可能，能够对有放回取样过程导致的所有数据变化进行平均，使得训练出来的模型更 robust</li>
+</ul>
+<h3 id="4-8-3-XGBoost-增强决策树算法"><a href="#4-8-3-XGBoost-增强决策树算法" class="headerlink" title="4.8.3. XGBoost 增强决策树算法"></a>4.8.3. XGBoost 增强决策树算法</h3><ul>
+<li>非常类似于针对性训练，比如刻意训练不熟练的一段，而不是总是训练整首曲子</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220914150804159.png" alt="image-20220914150804159"></p>
+<ul>
+<li>XGBoost（eXtreme Gradient Boosting）<ul>
+<li>增强决策树的一种开源实现</li>
+<li>高效</li>
+<li>对默认拆分条件有很好的选择</li>
+<li>内置正则化以防止过拟合</li>
+<li>和 dl 一样，是算法竞赛的热门算法</li>
+</ul>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220914151101334.png" alt="image-20220914151101334"></p>
+<h2 id="4-9-决策树和神经网络的使用时机"><a href="#4-9-决策树和神经网络的使用时机" class="headerlink" title="4.9. 决策树和神经网络的使用时机"></a>4.9. 决策树和神经网络的使用时机</h2><ul>
+<li>决策树和树集合<ul>
+<li>对表格化（结构化）tabular（structured）数据表现很好</li>
+<li>不建议在非结构化数据上使用（图像、音频、文本）</li>
+<li>训练迅速</li>
+<li>小的决策树可能是人类可以理解的（可解释性）</li>
+</ul>
+</li>
+<li>神经网络<ul>
+<li>对结构化和非结构化数据都表现良好</li>
+<li>比决策树慢（训练时长等）</li>
+<li>可以使用迁移学习（而决策树不行）</li>
+<li>当构建多个模型共同协作的系统时，神经网络模型更容易串在一起（决策树一次只能训练一个）</li>
+</ul>
+</li>
+</ul>
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/Coursera-Machine-Learning-03/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/NASM%E6%A6%82%E5%BF%B5%E4%B8%8E%E5%AE%9E%E6%88%98/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>

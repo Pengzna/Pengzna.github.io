@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      NASM概念与实战 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Oct 05, 2022
+  </h3>
+  <h1>
+    NASM概念与实战
+  </h1>
+  <div class="content markdown-body">
+    <h1 id="1-NASM-与-GDB-调试"><a href="#1-NASM-与-GDB-调试" class="headerlink" title="1. NASM 与 GDB 调试"></a>1. NASM 与 GDB 调试</h1><h2 id="1-1-安装与运行"><a href="#1-1-安装与运行" class="headerlink" title="1.1. 安装与运行"></a>1.1. 安装与运行</h2><p>在 Ubuntu 下可以通过 apt 安装</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">sudo apt install nasm</span><br></pre></td></tr></table></figure>
+
+<p>安装后就可以对文件进行汇编了，以<code>big_decimal.asm</code>为例</p>
+<p>在 Ubuntu 下</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">nasm -f elf big_decimal.asm -o big_decimal.o</span><br><span class="line">ld -m elf_i386 big_decimal.o -o big_decimal</span><br></pre></td></tr></table></figure>
+
+<p><code>ld</code>是 GUN 自带的链接工具，可以将目标文件链接起来，我们这里因为只有一个文件因此不需要额外的指令。</p>
+<p>复习一下，我们将一个写好的 C 程序转化为一个可以在 Unix 内核机器上执行的文件，需要经历下面四个步骤：</p>
+<ul>
+<li>预处理：处理 C 中的预处理命令，也就是#开头的那些，默认的生成文件格式为<code>.i</code></li>
+<li>编译：将 C 程序编译为汇编语言， 默认的生成文件格式为<code>.s</code>，这里的<code>.s</code>和我们的<code>.asm</code>没什么区别</li>
+<li>汇编：将汇编语言转化为机器码，默认的生成文件格式为<code>.o</code></li>
+<li>链接：链接动态库和静态库</li>
+</ul>
+<p>因为我们直接在写汇编程序，当然就不需要第一步和第二步了。</p>
+<h2 id="1-2-GDB-调试"><a href="#1-2-GDB-调试" class="headerlink" title="1.2. GDB 调试"></a>1.2. GDB 调试</h2><p>说到 GUN，不得不提今天的另一个主角，那就是 GDB，GNU symbolic debugger，它是一个在 Unix 内核中广受好评的调试工具。</p>
+<p>我们可以使用 GDB 来调试我们的汇编代码</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">nasm -f elf big_decimal.asm -o big_decimal.o</span><br><span class="line">ld -m elf_i386 big_decimal.o -o big_decimal</span><br><span class="line">sudo gdb big_decimal</span><br></pre></td></tr></table></figure>
+
+<p>接下来进入 gdb 界面，开始你的调试工作。</p>
+<p>和前面说到的一样，使用<code>gdb</code> 打开你的文件就好了，因为<code>gdb</code>要控制另一个进程，所以别忘了给它开权限。</p>
+<p>可以在汇编文件中设置断点，并在你想停止的地方<code>call</code>它，比如</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">break_demo:</span><br><span class="line">  ret</span><br></pre></td></tr></table></figure>
+
+<p>然后只要在<code>gdb</code>中</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">b break_demo</span><br></pre></td></tr></table></figure>
+
+<p>就可以让它在执行到<code>b</code>的时候中止程序。</p>
+<p>可以使用指令</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">i registers</span><br></pre></td></tr></table></figure>
+
+<p>查看代码运行的位置和寄存器状态。</p>
+<p>如果你的代码有<code>stdout</code>的输出，可能会破坏这个 layout 的格局，这时候使用<code>refresh</code>指令刷新它。</p>
+<p>最后，可以使用<code>x</code>指令查看你的内存状况，比如查看<code>0x40201c</code>开始的 20 个 bits 的内存</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">x/20b 0x40201c</span><br></pre></td></tr></table></figure>
+
+<h1 id="2-NASM-详解"><a href="#2-NASM-详解" class="headerlink" title="2. NASM 详解"></a>2. NASM 详解</h1><h2 id="2-1-NASM-程序的结构"><a href="#2-1-NASM-程序的结构" class="headerlink" title="2.1. NASM 程序的结构"></a>2.1. NASM 程序的结构</h2><p>NASM 是基于行的。大多数程序由指令后跟一个或多个部分组成。行可以具有可选标签。大多数行都有一条指令,后跟零个或多个操作数。</p>
+<p><a target="_blank" rel="noopener" href="https://raw.githubusercontent.com/zhangjunlei26/NASM-Tutorial-CN/master/assets/nasmstructure.png"><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20221004164300281.png" alt="image-20221004164300281"></a></p>
+<p>通常,您将代码放在的部分中,<code>.text</code>并将常量数据放在的部分中<code>.data</code>。</p>
+<h2 id="2-2-NASM-语法"><a href="#2-2-NASM-语法" class="headerlink" title="2.2. NASM 语法"></a>2.2. NASM 语法</h2><h3 id="2-2-1-基础指令"><a href="#2-2-1-基础指令" class="headerlink" title="2.2.1. 基础指令"></a>2.2.1. 基础指令</h3><p>有数百条指令。您无法一次全部学习它们。从这些 start:</p>
+<table>
+<thead>
+<tr>
+<th><code>mov</code> <em>x</em>,<em>y</em></th>
+<th><em>x</em> ← <em>y</em></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>and</code> <em>x</em>,<em>y</em></td>
+<td><em>x</em> ← <em>x</em> and <em>y</em></td>
+</tr>
+<tr>
+<td><code>or</code> <em>x</em>,<em>y</em></td>
+<td><em>x</em> ← <em>x</em> or <em>y</em></td>
+</tr>
+<tr>
+<td><code>xor</code> <em>x</em>,<em>y</em></td>
+<td><em>x</em> ← <em>x</em> xor <em>y</em></td>
+</tr>
+<tr>
+<td><code>add</code> <em>x</em>,<em>y</em></td>
+<td><em>x</em> ← <em>x</em> + <em>y</em></td>
+</tr>
+<tr>
+<td><code>sub</code> <em>x</em>,<em>y</em></td>
+<td><em>x</em> ← <em>x</em> – <em>y</em></td>
+</tr>
+<tr>
+<td><code>inc</code> <em>x</em></td>
+<td><em>x</em> ← <em>x</em> + 1</td>
+</tr>
+<tr>
+<td><code>dec</code> <em>x</em></td>
+<td><em>x</em> ← <em>x</em> – 1</td>
+</tr>
+<tr>
+<td><code>syscall</code></td>
+<td>调用操作系统例程</td>
+</tr>
+<tr>
+<td><code>db</code></td>
+<td>一个<a target="_blank" rel="noopener" href="http://www.nasm.us/xdoc/2.11.02/html/nasmdoc3.html#section-3.2">伪指令</a> 声明字节, 这将是在内存中的程序运行时</td>
+</tr>
+</tbody></table>
+<ul>
+<li><code>cmp</code> 做比较</li>
+<li><code>je</code>如果先前的比较相等则跳转。</li>
+<li><code>jne</code>(如果不等于则跳转)</li>
+<li><code>jl</code>(如果不等于则跳转)</li>
+<li><code>jnl</code>(如果不小于则跳转)</li>
+<li><code>jg</code>(如果大于则跳转)</li>
+<li><code>jng</code>(如果不大于则跳转)</li>
+<li><code>jle</code>(如果小于或等于则跳转)</li>
+<li><code>jnle</code>(如果不小于或等于则跳转)</li>
+<li><code>jge</code>(如果大于或等于则跳转)</li>
+<li><code>jnge</code>(如果不大于或等于则跳转)</li>
+<li><code>equ</code>实际上不是真正的指令。它只是定义了供汇编程序本身使用的缩写。(这是一个意义深远的想法)</li>
+<li>本<code>.bss</code>节适用于<em>可写</em>数据。</li>
+</ul>
+<h3 id="2-2-2-伪指令"><a href="#2-2-2-伪指令" class="headerlink" title="2.2.2. 伪指令"></a>2.2.2. 伪指令</h3><p>伪指令不是 x86&#x2F;x64 机器的真实指令，伪指令是用于给编译器指示如何进行编译。</p>
+<h4 id="2-2-2-1-nasm-定义的-7-种数据-size"><a href="#2-2-2-1-nasm-定义的-7-种数据-size" class="headerlink" title="2.2.2.1. nasm 定义的 7 种数据 size"></a>2.2.2.1. nasm 定义的 7 种数据 size</h4><ul>
+<li>byte ： 8 位</li>
+<li>word ： 16 位</li>
+<li>dword ： 32 位</li>
+<li>qword ： 64 位</li>
+<li>tword ： 80 位</li>
+<li>oword ： 128 位</li>
+<li>yword ： 256 位</li>
+</ul>
+<p>oword 可以对应 Microsoft MASM 的 xmmword 类型，yword 对应 Microsoft MASM 的 ymmword 类型。</p>
+<p>tword, oword 以及 yword 使用在 非整型 数据，使用在 float 和 SSE 型数据。</p>
+<h4 id="2-2-2-2-定义初始化数据：db-家族"><a href="#2-2-2-2-定义初始化数据：db-家族" class="headerlink" title="2.2.2.2. 定义初始化数据：db 家族"></a>2.2.2.2. 定义初始化数据：db 家族</h4><p>nasm 定义了用于初始化上面 7 种 size 的 db 家族，它们用于定义初化常量值。</p>
+<ul>
+<li>db : define byte</li>
+<li>dw ：define word</li>
+<li>dd ：define doubleword</li>
+<li>dq ：define quadword</li>
+<li>dt ：define tword</li>
+<li>do ：define oword</li>
+<li>dy ：define yword</li>
+</ul>
+<p>正如前面所说的：dt , do , dy 不接受整型数值常量，它们被使用在定义 float 或 SSE 数据常量。dt 可以定义 extended-precision float 数据，do 可以定义 quad-precision float，dy 可定义 ymm 数据。而 dq 可以定义 double-precision float 数据，dd 可以定义 single-precision float 数据。</p>
+<h4 id="2-2-2-3-定义非初始化数据：resb-家族"><a href="#2-2-2-3-定义非初始化数据：resb-家族" class="headerlink" title="2.2.2.3. 定义非初始化数据：resb 家族"></a>2.2.2.3. 定义非初始化数据：resb 家族</h4><p>程序中使用到的非初始化数据通常放在 <code>bss section</code> 里，<code>bss</code> 代表 <strong>uninitialized storage space</strong>(如果您试图在一个<code>.text</code>小节中使用它们,将会出现错误)：</p>
+<p>nasm 使用了 resb （reserve byte） 家族来定义非初始化数据。</p>
+<ul>
+<li>resb ：reserve byte</li>
+<li>resw ：reserve word</li>
+<li>resd ：reserve doubword</li>
+<li>resq ：reserve quadword</li>
+<li>rest ：reserve tword</li>
+<li>reso ：reserve oword</li>
+<li>resy ：reserve yword</li>
+</ul>
+<p>resb 相当于 Microsoft MASM 语法中的 db ?</p>
+<p>下面是 NASM Manual 的例子：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">buffer:         resb    64              ; reserve 64 bytes</span><br><span class="line">wordvar:        resw    1               ; reserve a word</span><br><span class="line">realarray       resq    10              ; array of ten reals</span><br><span class="line">ymmval:         resy    1               ; one YMM register</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-3-5-使用-equ-定义常量"><a href="#2-3-5-使用-equ-定义常量" class="headerlink" title="2.3.5 使用 equ 定义常量"></a>2.3.5 使用 equ 定义常量</h3><p>equ 用来为标识符定义一个 整型 常量，它的作用类似 C 语言中的 #define</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">a  equ 0                          ; OK</span><br><span class="line">b  equ &#x27;abcd&#x27;                     ; OK! b = 0x64636261</span><br><span class="line">c  equ &#x27;abcdefghi&#x27;                ; warning! c = 0x6867666564636261</span><br><span class="line">d  equ 1.2                        ; error!</span><br><span class="line"></span><br><span class="line">    section .data</span><br><span class="line">string db &#x27;hello,word&#x27;,0</span><br><span class="line">len    equ $-string               ; OK! len = 0x0b</span><br><span class="line"></span><br><span class="line">    section .text</span><br><span class="line">textlen equ  _end - entry         ; OK! textlen = 0x05</span><br><span class="line"></span><br><span class="line">_entry:</span><br><span class="line">    mov ecx, textlen</span><br><span class="line"></span><br><span class="line">_end:</span><br></pre></td></tr></table></figure>
+
+<p>例子中： b 定义为常量 ‘abcd’ 它将是字符串的 ASCII 码序列，‘abcdefghi’ 常量将会被截断，整型常量最长为 quadword（8 bytes)，而 d 企图被定义为一个 float 常量，这产生会错误。len 和 textlen 被定义为编译期确定的数值。</p>
+<h2 id="2-3-寄存器"><a href="#2-3-寄存器" class="headerlink" title="2.3. 寄存器"></a>2.3. 寄存器</h2><p>您可以将每个寄存器的最低 32 位视为寄存器本身,但可以使用以下名称：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">R0D R1D R2D R3D R4D R5D R6D R7D R8D R9D R10D R11D R12D R13D R14D R15D</span><br><span class="line">EAX ECX EDX EBX ESP EBP ESI EDI</span><br></pre></td></tr></table></figure>
+
+<p>您可以使用以下名称将每个寄存器的最低 16 位看作一个寄存器：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">R0W R1W R2W R3W R4W R5W R6W R7W R8W R9W R10W R11W R12W R13W R14W R15W</span><br><span class="line">AX CX DX BX SP BP SI DI</span><br></pre></td></tr></table></figure>
+
+<p>您可以使用以下名称将每个寄存器的最低 8 位看作一个寄存器：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">R0B R1B R2B R3B R4B R5B R6B R7B R8B R9B R10B R11B R12B R13B R14B R15B</span><br><span class="line">AL CL DL BL SPL BPL SIL DIL</span><br></pre></td></tr></table></figure>
+
+<p>由于历史原因，<code>R0...R3</code>的第 15 至 8 位被命名为：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">AH CH DH BH</span><br></pre></td></tr></table></figure>
+
+<h2 id="2-4-操作数"><a href="#2-4-操作数" class="headerlink" title="2.4. 操作数"></a>2.4. 操作数</h2><h3 id="2-4-1-内存操作数"><a href="#2-4-1-内存操作数" class="headerlink" title="2.4.1. 内存操作数"></a>2.4.1. 内存操作数</h3><ul>
+<li>其实就是几种寻址的方式<ul>
+<li>直接寻址</li>
+<li>寄存器间接寻址</li>
+<li>寄存器相对寻址</li>
+<li>基址加变址</li>
+<li>相对基址加变址</li>
+</ul>
+</li>
+<li>注意：没有立即寻址和寄存器寻址</li>
+</ul>
+<p>这些是寻址的基本形式：</p>
+<ul>
+<li><code>[ number ]</code></li>
+<li><code>[ reg ]</code></li>
+<li><code>[ reg + reg*scale ]</code> <em>小数位数只能是 1、2、4 或 8</em></li>
+<li><code>[ reg + number ]</code></li>
+<li><code>[ reg + reg*scale + number ]</code></li>
+</ul>
+<p>这个数字叫做<strong>位移</strong> ; 普通寄存器称为<strong>基</strong> ; 带有刻度的寄存器称为<strong>索引</strong>。</p>
+<p>例子：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">[750]               ; 仅位移</span><br><span class="line">[rbp]               ; 仅基址寄存器</span><br><span class="line">[rcx + rsi*4]       ; 基数+指数*比例</span><br><span class="line">[rbp + rdx]         ; scale is 1</span><br><span class="line">[rbx-8]             ; 位移-8</span><br><span class="line">[rax + rdi*8 + 500] ; 所有四个组成部分</span><br><span class="line">[rbx + counter]     ; 使用变量&quot;counter&quot;地址作为偏移</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-4-2-直接操作数"><a href="#2-4-2-直接操作数" class="headerlink" title="2.4.2. 直接操作数"></a>2.4.2. 直接操作数</h3><p>这些可以用多种方式编写。以下是官方文档中的一些示例。</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">200         ; 十进制数</span><br><span class="line">0200        ; 仍然是十进制-前导0不会使其变为八进制</span><br><span class="line">0200d       ; 显式十进制-d后缀</span><br><span class="line">0d200       ; 也十进制-0d prefex</span><br><span class="line">0c8h        ; 十六进制-h后缀,但是前导0是必需的,因为c8h看起来像var</span><br><span class="line">0xc8        ; hex-经典的0x前缀</span><br><span class="line">0hc8        ; 十六进制-由于某些原因,NASM偏爱0h写法</span><br><span class="line">310q        ; 八进制-q后缀</span><br><span class="line">0q310       ; 八进制-0q前缀</span><br><span class="line">11001000b   ; 二进制-b后缀</span><br><span class="line">0b1100_1000 ; 二进制-0b前缀,顺便说一下,允许使用下划线</span><br></pre></td></tr></table></figure>
+
+<h2 id="2-5-使用-C-库"><a href="#2-5-使用-C-库" class="headerlink" title="2.5. 使用 C 库"></a>2.5. 使用 C 库</h2><p>仅使用 syscall 编写独立程序就已经很酷了，但很少见。我们想使用 C 库中的好东西。</p>
+<p>为何在 C 语言程序中，看上去都是从 <code>main</code>函数开始执行？这是因为 C library 的内部有<code>_start</code>标签！<code>_start</code>开始处的代码会做一些初始化的工作，然后调用<code>main</code>函数中的代码，最后执行清理工作，最终执行 60 号系统调用以退出。因此，您只需要实现<code>main</code>函数即可，我们可以在汇编语言中实现这么做：</p>
+<p>如果您有 Linux,请尝试以下操作：</p>
+<p>hola.asm</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">; ----------------------------------------------------------------------------------------</span><br><span class="line">; 使用C库将&quot; Hola,mundo&quot;写入控制台。程序运行在 Linux 或者其他在 C 语言库中不使用下划线的操作系统上。</span><br><span class="line">; 如何编译执行:</span><br><span class="line">; nasm -felf64 hola.asm &amp;&amp; gcc hola.o &amp;&amp; ./a.out</span><br><span class="line">; ----------------------------------------------------------------------------------------</span><br><span class="line">global    main</span><br><span class="line">          extern    puts</span><br><span class="line"></span><br><span class="line">          section   .text</span><br><span class="line">main:                                       ; 这里被 C library初始化代码所调用</span><br><span class="line">          mov       rdi, message            ; rdi中的第一个整数(或指针)参数</span><br><span class="line">          call      puts                    ; puts(message)</span><br><span class="line">          ret                               ; 由 main 函数返回 C 语言库例程</span><br><span class="line">message:</span><br><span class="line">          db        &quot;Hola, mundo&quot;, 0        ; 注意字符串必须在C中以0结尾</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ nasm -felf64 hola.asm &amp;&amp; gcc hola.o &amp;&amp; ./a.out</span><br><span class="line">Hola, mundo</span><br></pre></td></tr></table></figure>
+
+<h2 id="2-6-字符常量"><a href="#2-6-字符常量" class="headerlink" title="2.6. 字符常量"></a>2.6. 字符常量</h2><p>在 nasm 中，可以使用 3 种引号来提供字符</p>
+<ul>
+<li>’ …’ （单引号）</li>
+<li>” …” （双引号）</li>
+<li><code> …</code> （反引号）</li>
+</ul>
+<p>如下示例，它们的结果是一样的：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">db  &#x27;abcd&#x27;</span><br><span class="line">db  &quot;abcd&quot;</span><br><span class="line">db  `abcd`</span><br></pre></td></tr></table></figure>
+
+<h1 id="3-实践-OS-lab1"><a href="#3-实践-OS-lab1" class="headerlink" title="3. 实践 - OS lab1"></a>3. 实践 - OS lab1</h1><ul>
+<li>使用 nasm 实现大数加法和乘法</li>
+</ul>
+<h2 id="3-1-思路"><a href="#3-1-思路" class="headerlink" title="3.1. 思路"></a>3.1. 思路</h2><ul>
+<li><p>输入输出</p>
+<ul>
+<li>需要熟悉 Linux 系统调用（ics 教过）</li>
+<li>需要熟悉寄存器的使用</li>
+<li>打印 int 数组需要 itoa</li>
+</ul>
+</li>
+<li><p>加法</p>
+<ul>
+<li>按位加，细节略</li>
+</ul>
+</li>
+<li><p>减法</p>
+<ul>
+<li>找出绝对值较大者，计算<code>dest - src // (abs(dest) &gt; abs(src))</code></li>
+<li>按位减，每次减要考虑借位，其他细节略</li>
+</ul>
+</li>
+<li><p>乘法</p>
+<ul>
+<li><p>$$<br>基本原理：<br>\Sigma_{i+j&#x3D;k}(a_i \times b_j) &#x3D; c_k<br>$$</p>
+</li>
+<li><p>先按位乘，最后再统一 normalize</p>
+</li>
+</ul>
+</li>
+<li><p>技巧</p>
+<ul>
+<li>string 转 int 数组后倒序存储，方便 int 数组正序遍历</li>
+<li>比如<code>&quot;123&quot;</code>，存储为<code>[3, 2, 1]</code></li>
+</ul>
+</li>
+</ul>
+<h2 id="3-2-踩坑"><a href="#3-2-踩坑" class="headerlink" title="3.2. 踩坑"></a>3.2. 踩坑</h2><ul>
+<li>jmp 的函数无须 ret！！！<ul>
+<li>否则即使 push 的已全部 pop，ret 仍会 segmentation fault</li>
+</ul>
+</li>
+<li>调用栈的使用</li>
+<li>ebp 用 leave 弹出</li>
+<li>intel 语法（nasm）的 mov 不接受两个 opcode</li>
+<li>.bss 和.data 定义出的是指针</li>
+<li>区分字符（’1’）和数字（0x1）</li>
+<li>loop 循环不可轻易 jmp 到压栈代码段（除非是设计好的）</li>
+<li>gdb 和 objdump 结合的使用</li>
+<li>每次循环后要清空bss和寄存器</li>
+</ul>
+<h1 id="4-参考资料"><a href="#4-参考资料" class="headerlink" title="4. 参考资料"></a>4. 参考资料</h1><p><a target="_blank" rel="noopener" href="https://github.com/zhangjunlei26/NASM-Tutorial-CN">zhangjunlei26&#x2F;NASM-Tutorial-CN: Nasm 指南中文 (NASM Tutorial) (github.com)</a></p>
+<p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/263102219">NASM 与 GDB 的使用指南：如何编好你的汇编 - 知乎 (zhihu.com)</a></p>
+<p><a target="_blank" rel="noopener" href="https://blog.csdn.net/jadeshu/article/details/89159196">(29 条消息) nasm 汇编讲解_jadeshu 的博客-CSDN 博客_nasm</a></p>
+<p>[学习 nasm 语言-阿里云开发者社区 (aliyun.com)](<a target="_blank" rel="noopener" href="https://developer.aliyun.com/article/25221#:~:text=%E4%BB%A3%E7%A0%81%E4%B8%AD%E4%BD%BF%E7%94%A8">https://developer.aliyun.com/article/25221#:~:text=代码中使用</a> byte 关键字对 memory 操作数进行了修饰，指明 memory 操作数的大小为 byte,语法）有些不同， masm 的语法是： 在 masm 语法中需配合 ptr 指示字。)</p>
+<p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/297925056">GDB 使用详解 - 知乎 (zhihu.com)</a></p>
+<p><a target="_blank" rel="noopener" href="https://blog.csdn.net/u014470361/article/details/102230583">(29 条消息) GDB 调试查看内存数据_夜风~的博客-CSDN 博客_gdb 查看内存数据</a></p>
+<p><a target="_blank" rel="noopener" href="https://blog.csdn.net/weixin_44395686/article/details/104727314">(29 条消息) 使用 GDB 查看和修改寄存器的值_@HDS 的博客-CSDN 博客_gdb 查看寄存器的值</a></p>
+<p><a target="_blank" rel="noopener" href="http://www.bytekits.com/nasm/system-callback.html">Nasm 系统调用 - 字节流 (bytekits.com)</a></p>
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/Coursera-Machine-Learning-04/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/ROS%E5%AE%89%E8%A3%85%E8%B8%A9%E5%9D%91/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>

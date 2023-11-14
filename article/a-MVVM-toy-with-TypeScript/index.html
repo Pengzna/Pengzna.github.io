@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      a MVVM toy with TypeScript 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Jul 25, 2022
+  </h3>
+  <h1>
+    a MVVM toy with TypeScript
+  </h1>
+  <div class="content markdown-body">
+    <p>[toc]</p>
+<h1 id="1-核心原理"><a href="#1-核心原理" class="headerlink" title="1. 核心原理"></a>1. 核心原理</h1><p>与 MVC 相比，MVVM 包含数据驱动视图更新的机制 &amp; 渲染视图的模板引擎。总的来说 MVVM 框架的核心原理如下：</p>
+<h2 id="1-1-数据劫持"><a href="#1-1-数据劫持" class="headerlink" title="1.1. 数据劫持"></a>1.1. 数据劫持</h2><blockquote>
+<p>通过 js 原生的<code>Object.defineProperty</code>方法，可以进行数据劫持。而做数据劫持时主要用到的就是 get 和 set 两个属性。通过该方法，被劫持的对象属性，只要在外界获取或者修改属性值都会触发 get 或 set 方法，这样我们就可以在 get 或 set 中对属性做一些额外对操作。</p>
+</blockquote>
+<p>由此，可以通过数据劫持对数据做一些额外的操作从而实现响应式数据。</p>
+<h2 id="1-2-模板编译"><a href="#1-2-模板编译" class="headerlink" title="1.2. 模板编译"></a>1.2. 模板编译</h2><blockquote>
+<p>为什么要模板编译？ 我们知道在 vue 中是通过一些指令或者小胡子语法来实现数据绑定的，而浏览器并不认识这些指令或者小胡子语法，因此在页面加载后需要将这些语法转换成真正的数据呈现给用户。</p>
+</blockquote>
+<p><strong>本次大作业中</strong>，我实现模板编译的主要流程如下：</p>
+<ul>
+<li><p>遍历#app 下所有的节点，然后根据节点的类型做相应的操作</p>
+<ul>
+<li>如果是元素节点，获取该节点中所有的属性（attributes）并遍历看是否有 v-model、v-bind、v-on 指令<ul>
+<li>如果有相应指令，则根据该指令绑定的属性名（data 中的属性名）获取到对应到值，并赋值给节点的 value 属性</li>
+</ul>
+</li>
+<li>如果是文本节点，则看该文本内容中是否包含小胡子语法<ul>
+<li>如果有小胡子语法，同样需要解析出小胡子中绑定的属性名（data 中的属性名）并获取到对应到值替换该文本内容</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>遍历完每个节点后再将该节点作为子节点添加到 html 到文档碎片中</p>
+</li>
+<li><p>最后再将整个文档碎片添加到 dom 中。</p>
+<blockquote>
+<p>说明：这里借鉴了虚拟 dom 的思路，本次大作业借助文档碎片来模拟虚拟 dom 实现。</p>
+<p>使用虚拟 dom 思路可以避免直接遍历由于不停的修改节点而带来的性能消耗，通过文档碎片在所有节点遍历完成后只需要一次消耗，可以降低了回流重汇带来的性能损耗。</p>
+</blockquote>
+</li>
+</ul>
+<h2 id="1-3-双向绑定"><a href="#1-3-双向绑定" class="headerlink" title="1.3. 双向绑定"></a>1.3. 双向绑定</h2><blockquote>
+<p>本次大作业主要是利用数据劫持加发布订阅模式来实现数据的双向绑定的。</p>
+</blockquote>
+<p>数据劫持的目的是为了在获取数据或给数据赋值之前对数据做一些额外的操作，那么这些额外的操作其实就是利用发布订阅模式对数据属性进行监控。大概实现思路如下：</p>
+<ul>
+<li>定义一个 Watcher 类，用于对属性进行监听，并实现属性值的同步更新</li>
+<li>在模板编译的时候，通过 watcher 来监听属性</li>
+<li>在数据劫持的 get 函数中进行依赖收集</li>
+<li>在数据劫持的 set 函数中通知各个 watcher 进行数据更新</li>
+</ul>
+<h1 id="2-代码架构"><a href="#2-代码架构" class="headerlink" title="2. 代码架构"></a>2. 代码架构</h1><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">MVVM</span><br><span class="line">│</span><br><span class="line">├─ src</span><br><span class="line">│  ├─ compile</span><br><span class="line">│  │  └─ compile.ts // compile模块</span><br><span class="line">│  ├─ const</span><br><span class="line">│  │  └─ regex.ts // 正则表达式枚举</span><br><span class="line">│  ├─ observer</span><br><span class="line">│  │  └─ observer.ts // observer模块</span><br><span class="line">│  ├─ watcher</span><br><span class="line">│  │  └─ watcher.ts // wather类</span><br><span class="line">│  └─ index.ts // 主入口文件</span><br><span class="line">├─ test</span><br><span class="line">│  ├─ unitTest // 单元测试文件</span><br><span class="line">│  │  ├─ vBind.test.js</span><br><span class="line">│  │  ├─ vModel.test.js</span><br><span class="line">│  │  └─ vOn.test.js</span><br><span class="line">│  ├─ index.html // 集成测试html</span><br><span class="line">│  └─ mock.js // mock</span><br><span class="line">├─ .gitignore</span><br><span class="line">├─ package-lock.json</span><br><span class="line">├─ package.json</span><br><span class="line">├─ README.md</span><br><span class="line">├─ tsconfig.json</span><br><span class="line">└─ webpack.config.js</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h2 id="2-1-MVVM"><a href="#2-1-MVVM" class="headerlink" title="2.1. MVVM"></a>2.1. MVVM</h2><p>入口文件，在这里对 vue 当中的<code>$el、$methods、$data</code>进行初始化，调用 <code>observer</code> 遍历<code>$data</code>的数据并进行挟持，调用<code>compile</code>遍历<code>$el</code>下的所有节点，解析之类和取值操作。遍历<code>$data</code>的数据，通过<code>Object.defineProperty</code>的<code>getter</code>和<code>setter</code>实现对<code>$data</code> 的代理。</p>
+<h2 id="2-2-Observer"><a href="#2-2-Observer" class="headerlink" title="2.2. Observer"></a>2.2. Observer</h2><p>遍历 <code>$data</code>，通过 <code>Object.defineProperty</code> 设置 <code>getter</code> 和 <code>setter</code>，在 <code>setter</code> 知道数据发生了改变，然后通知 <code>Wacher</code> 去更新 <code>view</code>。</p>
+<h2 id="2-3-Compile"><a href="#2-3-Compile" class="headerlink" title="2.3. Compile"></a>2.3. Compile</h2><p>遍历<code>$el</code> 下的所有节点，解析指令和取值操作等，为每个节点绑定更新函数（在这里），绑定事件和 <code>method</code> 的关系，同时也添加订阅者，当接受到视图更新的订阅消息后，调用更新函数，实现视图更新。同时在添加订阅者的时候，初始化渲染视图。</p>
+<h2 id="2-4-Watcher"><a href="#2-4-Watcher" class="headerlink" title="2.4. Watcher"></a>2.4. Watcher</h2><p><code>Watcher</code> 作为订阅者，充当 <code>Observer</code> 和 <code>Compile</code> 的中间桥梁，包含 <code>update</code> 方法，<code>update</code> 方法调用 <code>Compile</code> 中绑定的事件更新函数，实现对视图的初始化和更新操作。</p>
+<h1 id="3-实例"><a href="#3-实例" class="headerlink" title="3. 实例"></a>3. 实例</h1><blockquote>
+<p>实现功能：</p>
+<ul>
+<li>v-on（事件绑定）</li>
+<li>v-bind（单向绑定）</li>
+<li>v-model（双向绑定）</li>
+<li>小胡子语法（插值表达式，双向绑定）</li>
+</ul>
+</blockquote>
+<h2 id="3-1-HTML"><a href="#3-1-HTML" class="headerlink" title="3.1. HTML"></a>3.1. HTML</h2><figure class="highlight html"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;!DOCTYPE <span class="keyword">html</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">html</span> <span class="attr">lang</span>=<span class="string">&quot;en&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">head</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">charset</span>=<span class="string">&quot;UTF-8&quot;</span> /&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">name</span>=<span class="string">&quot;viewport&quot;</span> <span class="attr">content</span>=<span class="string">&quot;width=device-width, initial-scale=1.0&quot;</span> /&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">meta</span> <span class="attr">http-equiv</span>=<span class="string">&quot;X-UA-Compatible&quot;</span> <span class="attr">content</span>=<span class="string">&quot;ie=edge&quot;</span> /&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">title</span>&gt;</span>Document<span class="tag">&lt;/<span class="name">title</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">head</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">body</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">div</span> <span class="attr">id</span>=<span class="string">&quot;app&quot;</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">div</span> <span class="attr">v-bind:id</span>=<span class="string">&quot;id&quot;</span>&gt;</span>&#123;&#123;message&#125;&#125;:&#123;&#123;name&#125;&#125;<span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">input</span> <span class="attr">type</span>=<span class="string">&quot;text&quot;</span> <span class="attr">v-model</span>=<span class="string">&quot;name&quot;</span> /&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">button</span> <span class="attr">v-on:click</span>=<span class="string">&quot;handleClick&quot;</span>&gt;</span>获取输入值<span class="tag">&lt;/<span class="name">button</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">body</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">script</span> <span class="attr">src</span>=<span class="string">&quot;../dist/bundle.js&quot;</span>&gt;</span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">script</span>&gt;</span><span class="language-javascript"></span></span><br><span class="line"><span class="language-javascript">    <span class="keyword">var</span> vue = <span class="keyword">new</span> <span class="title function_">MVVM</span>(&#123;</span></span><br><span class="line"><span class="language-javascript">      <span class="attr">el</span>: <span class="string">&#x27;#app&#x27;</span>,</span></span><br><span class="line"><span class="language-javascript">      <span class="attr">data</span>: &#123;</span></span><br><span class="line"><span class="language-javascript">        <span class="attr">message</span>: <span class="string">&#x27;测试&#x27;</span>,</span></span><br><span class="line"><span class="language-javascript">        <span class="attr">name</span>: <span class="string">&#x27;百度前端&#x27;</span>,</span></span><br><span class="line"><span class="language-javascript">        <span class="attr">id</span>: <span class="string">&#x27;1234&#x27;</span>,</span></span><br><span class="line"><span class="language-javascript">      &#125;,</span></span><br><span class="line"><span class="language-javascript">      <span class="attr">methods</span>: &#123;</span></span><br><span class="line"><span class="language-javascript">        <span class="attr">handleClick</span>: <span class="keyword">function</span> (<span class="params"></span>) &#123;</span></span><br><span class="line"><span class="language-javascript">          <span class="title function_">alert</span>(<span class="variable language_">this</span>.<span class="property">message</span> + <span class="string">&#x27;:&#x27;</span> + <span class="variable language_">this</span>.<span class="property">name</span> + <span class="string">&#x27;, 点击确定会修改值&#x27;</span>)</span></span><br><span class="line"><span class="language-javascript">          <span class="variable language_">this</span>.<span class="property">name</span> = <span class="string">&#x27;修改了值为此~&#x27;</span></span></span><br><span class="line"><span class="language-javascript">          <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="number">1234</span>))</span></span><br><span class="line"><span class="language-javascript">        &#125;,</span></span><br><span class="line"><span class="language-javascript">      &#125;,</span></span><br><span class="line"><span class="language-javascript">    &#125;)</span></span><br><span class="line"><span class="language-javascript">  </span><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">html</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="3-2-效果展示"><a href="#3-2-效果展示" class="headerlink" title="3.2. 效果展示"></a>3.2. 效果展示</h2><p><strong><em>v-model</em></strong><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220719232943560.png" alt="image-20220719232943560"></p>
+<p><strong><em>v-on &#x2F; v-bind</em></strong><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220719232957753.png" alt="image-20220719232957753"></p>
+<h1 id="4-单元测试"><a href="#4-单元测试" class="headerlink" title="4. 单元测试"></a>4. 单元测试</h1><blockquote>
+<p>考虑到我编写的都是类，在<code>MVVM</code>类构造的时候即调用所有模块，进行绑定、注册、监听、订阅等工作。因此选择构造 dom 对 v-on（事件绑定）、v-model（双向绑定）、v-bind（数据单向绑定）进行测试</p>
+</blockquote>
+<h2 id="4-1-测试配置"><a href="#4-1-测试配置" class="headerlink" title="4.1. 测试配置"></a>4.1. 测试配置</h2><ul>
+<li><p>测试工具：<code>&quot;jest&quot;: &quot;^28.1.3&quot;</code></p>
+</li>
+<li><p>测试环境：<code>&quot;node.js&quot;: &quot;^v16.13.2&quot;</code></p>
+</li>
+<li><p><code>package.json</code>配置</p>
+<ul>
+<li><pre><code class="json">&#123;
+  &quot;dependencies&quot;: &#123;
+    &quot;http&quot;: &quot;^0.0.1-security&quot;,
+    &quot;jest-environment-jsdom&quot;: &quot;^28.1.3&quot;,
+    &quot;jsdom&quot;: &quot;^20.0.0&quot;,
+    &quot;text-encoding&quot;: &quot;^0.7.0&quot;
+  &#125;,
+  &quot;name&quot;: &quot;mvvm&quot;,
+  &quot;description&quot;: &quot;简易的MVVM框架，用typescript实现&quot;,
+  &quot;version&quot;: &quot;1.0.0&quot;,
+  &quot;main&quot;: &quot;index.js&quot;,
+  &quot;directories&quot;: &#123;
+    &quot;test&quot;: &quot;test&quot;
+  &#125;,
+  &quot;devDependencies&quot;: &#123;
+    &quot;@babel/core&quot;: &quot;^7.18.9&quot;,
+    &quot;@babel/preset-env&quot;: &quot;^7.18.9&quot;,
+    &quot;@babel/preset-typescript&quot;: &quot;^7.18.6&quot;,
+    &quot;@types/chai&quot;: &quot;^4.3.1&quot;,
+    &quot;@types/jest&quot;: &quot;^28.1.6&quot;,
+    &quot;@types/mocha&quot;: &quot;^9.1.1&quot;,
+    &quot;babel-jest&quot;: &quot;^28.1.3&quot;,
+    &quot;chai&quot;: &quot;^4.3.6&quot;,
+    &quot;jest&quot;: &quot;^28.1.3&quot;,
+    &quot;mocha&quot;: &quot;^10.0.0&quot;,
+    &quot;ts-loader&quot;: &quot;^9.3.1&quot;,
+    &quot;ts-node&quot;: &quot;^10.9.1&quot;,
+    &quot;typescript&quot;: &quot;^4.7.4&quot;,
+    &quot;webpack&quot;: &quot;^5.73.0&quot;,
+    &quot;webpack-cli&quot;: &quot;^4.10.0&quot;
+  &#125;,
+  &quot;scripts&quot;: &#123;
+    &quot;test&quot;: &quot;jest&quot;,
+    &quot;build&quot;: &quot;webpack&quot;,
+    &quot;coverage&quot;: &quot;jest --coverage&quot;
+  &#125;,
+  &quot;repository&quot;: &#123;
+    &quot;type&quot;: &quot;git&quot;,
+    &quot;url&quot;: &quot;git+https://github.com/Pengzna/MVVM-toy.git&quot;
+  &#125;,
+  &quot;keywords&quot;: [],
+  &quot;author&quot;: &quot;&quot;,
+  &quot;license&quot;: &quot;ISC&quot;,
+  &quot;bugs&quot;: &#123;
+    &quot;url&quot;: &quot;https://github.com/Pengzna/MVVM-toy/issues&quot;
+  &#125;,
+  &quot;homepage&quot;: &quot;https://github.com/Pengzna/MVVM-toy#readme&quot;
+&#125;
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">- `jest.config.js`配置</span><br><span class="line"></span><br><span class="line">  - ```js</span><br><span class="line">    module.exports = &#123;</span><br><span class="line">      transform: &#123;</span><br><span class="line">        &#x27;^.+\\.js$&#x27;: &#x27;babel-jest&#x27;,</span><br><span class="line">      &#125;,</span><br><span class="line">      testEnvironment: &#x27;jsdom&#x27;,</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+</code></pre>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="4-2-测试代码"><a href="#4-2-测试代码" class="headerlink" title="4.2. 测试代码"></a>4.2. 测试代码</h2><h3 id="4-2-1-vBind-test-js"><a href="#4-2-1-vBind-test-js" class="headerlink" title="4.2.1. vBind.test.js"></a>4.2.1. vBind.test.js</h3><figure class="highlight js"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> &#123; <span class="variable constant_">MVVM</span> &#125; <span class="keyword">from</span> <span class="string">&#x27;../../src/index&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="title function_">test</span>(<span class="string">&#x27;v-bind test&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">  <span class="variable language_">document</span>.<span class="property">body</span>.<span class="property">innerHTML</span> = <span class="string">`</span></span><br><span class="line"><span class="string">  &lt;div id=&quot;app&quot;&gt;</span></span><br><span class="line"><span class="string">    &lt;div v-bind:id=&quot;id&quot;&gt;&#123;&#123;message&#125;&#125;:&#123;&#123;name&#125;&#125;&lt;/div&gt;</span></span><br><span class="line"><span class="string">    &lt;input type=&quot;text&quot; v-model=&quot;name&quot;/&gt;</span></span><br><span class="line"><span class="string">    &lt;button v-on:click=&quot;handleClick&quot;&gt;获取输入值&lt;/button&gt;</span></span><br><span class="line"><span class="string">  &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span></span><br><span class="line">  <span class="keyword">const</span> vue = <span class="keyword">new</span> <span class="title function_">MVVM</span>(&#123;</span><br><span class="line">    <span class="attr">el</span>: <span class="string">&#x27;#app&#x27;</span>,</span><br><span class="line">    <span class="attr">data</span>: &#123;</span><br><span class="line">      <span class="attr">message</span>: <span class="string">&#x27;测试&#x27;</span>,</span><br><span class="line">      <span class="attr">name</span>: <span class="string">&#x27;百度前端&#x27;</span>,</span><br><span class="line">      <span class="attr">id</span>: <span class="string">&#x27;1234&#x27;</span>,</span><br><span class="line">    &#125;,</span><br><span class="line">  &#125;)</span><br><span class="line">  <span class="keyword">const</span> testNode = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;1234&#x27;</span>)</span><br><span class="line">  <span class="keyword">const</span> actualValue = <span class="string">&#x27;&#123;&#123;message&#125;&#125;:&#123;&#123;name&#125;&#125;&#x27;</span></span><br><span class="line">  <span class="title function_">expect</span>(testNode.<span class="property">textContent</span>).<span class="title function_">toBe</span>(actualValue)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-2-vModel-test-js"><a href="#4-2-2-vModel-test-js" class="headerlink" title="4.2.2. vModel.test.js"></a>4.2.2. vModel.test.js</h3><figure class="highlight js"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> &#123; <span class="variable constant_">MVVM</span> &#125; <span class="keyword">from</span> <span class="string">&#x27;../../src/index&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="title function_">test</span>(<span class="string">&#x27;v-model test&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">  <span class="variable language_">document</span>.<span class="property">body</span>.<span class="property">innerHTML</span> = <span class="string">`</span></span><br><span class="line"><span class="string">  &lt;div id=&quot;app&quot;&gt;</span></span><br><span class="line"><span class="string">    &lt;div v-bind:id=&quot;id&quot;&gt;&#123;&#123;message&#125;&#125;:&#123;&#123;name&#125;&#125;&lt;/div&gt;</span></span><br><span class="line"><span class="string">    &lt;input type=&quot;text&quot; v-model=&quot;name&quot;/&gt;</span></span><br><span class="line"><span class="string">    &lt;button v-on:click=&quot;handleClick&quot;&gt;获取输入值&lt;/button&gt;</span></span><br><span class="line"><span class="string">  &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span></span><br><span class="line">  <span class="keyword">const</span> vue = <span class="keyword">new</span> <span class="title function_">MVVM</span>(&#123;</span><br><span class="line">    <span class="attr">el</span>: <span class="string">&#x27;#app&#x27;</span>,</span><br><span class="line">    <span class="attr">data</span>: &#123;</span><br><span class="line">      <span class="attr">message</span>: <span class="string">&#x27;测试&#x27;</span>,</span><br><span class="line">      <span class="attr">name</span>: <span class="string">&#x27;百度前端&#x27;</span>,</span><br><span class="line">      <span class="attr">id</span>: <span class="string">&#x27;1234&#x27;</span>,</span><br><span class="line">    &#125;,</span><br><span class="line">  &#125;)</span><br><span class="line">  <span class="keyword">const</span> actualValue = <span class="variable language_">document</span>.<span class="title function_">getElementsByTagName</span>(<span class="string">&#x27;input&#x27;</span>)[<span class="number">0</span>].<span class="property">value</span></span><br><span class="line">  <span class="title function_">expect</span>(vue.<span class="property">name</span>).<span class="title function_">toBe</span>(actualValue)</span><br><span class="line">  <span class="keyword">const</span> input = <span class="variable language_">document</span>.<span class="title function_">getElementsByTagName</span>(<span class="string">&#x27;input&#x27;</span>)[<span class="number">0</span>]</span><br><span class="line">  <span class="comment">// 触发v-model需要触发事件。</span></span><br><span class="line">  input.<span class="title function_">addEventListener</span>(<span class="string">&#x27;input&#x27;</span>, <span class="keyword">function</span> (<span class="params"></span>) &#123;</span><br><span class="line">    vue.<span class="property">name</span> = <span class="string">&#x27;修改后&#x27;</span></span><br><span class="line">  &#125;)</span><br><span class="line">  <span class="keyword">let</span> inputEvent = <span class="keyword">new</span> <span class="title class_">Event</span>(<span class="string">&#x27;input&#x27;</span>)</span><br><span class="line">  input.<span class="title function_">dispatchEvent</span>(inputEvent)</span><br><span class="line">  <span class="keyword">const</span> modifiedValue = <span class="variable language_">document</span>.<span class="title function_">getElementsByTagName</span>(<span class="string">&#x27;input&#x27;</span>)[<span class="number">0</span>].<span class="property">value</span></span><br><span class="line">  <span class="title function_">expect</span>(vue.<span class="property">name</span>).<span class="title function_">toBe</span>(modifiedValue)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-3-vOn-test-js"><a href="#4-2-3-vOn-test-js" class="headerlink" title="4.2.3. vOn.test.js"></a>4.2.3. vOn.test.js</h3><figure class="highlight js"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> &#123; <span class="variable constant_">MVVM</span> &#125; <span class="keyword">from</span> <span class="string">&#x27;../../src/index&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="title function_">test</span>(<span class="string">&#x27;v-on test&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">  <span class="variable language_">document</span>.<span class="property">body</span>.<span class="property">innerHTML</span> = <span class="string">`</span></span><br><span class="line"><span class="string">  &lt;div id=&quot;app&quot;&gt;</span></span><br><span class="line"><span class="string">    &lt;div v-bind:id=&quot;id&quot;&gt;&#123;&#123;message&#125;&#125;:&#123;&#123;name&#125;&#125;&lt;/div&gt;</span></span><br><span class="line"><span class="string">    &lt;input type=&quot;text&quot; v-model=&quot;name&quot;/&gt;</span></span><br><span class="line"><span class="string">    &lt;button v-on:click=&quot;handleClick&quot; id=&quot;bt&quot;&gt;获取输入值&lt;/button&gt;</span></span><br><span class="line"><span class="string">  &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span></span><br><span class="line">  <span class="keyword">const</span> vue = <span class="keyword">new</span> <span class="title function_">MVVM</span>(&#123;</span><br><span class="line">    <span class="attr">el</span>: <span class="string">&#x27;#app&#x27;</span>,</span><br><span class="line">    <span class="attr">data</span>: &#123;</span><br><span class="line">      <span class="attr">message</span>: <span class="string">&#x27;测试&#x27;</span>,</span><br><span class="line">      <span class="attr">name</span>: <span class="string">&#x27;百度前端&#x27;</span>,</span><br><span class="line">      <span class="attr">id</span>: <span class="string">&#x27;1234&#x27;</span>,</span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">methods</span>: &#123;</span><br><span class="line">      <span class="attr">handleClick</span>: <span class="keyword">function</span> (<span class="params"></span>) &#123;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">name</span> = <span class="string">&#x27;修改了值为此~&#x27;</span></span><br><span class="line">      &#125;,</span><br><span class="line">    &#125;,</span><br><span class="line">  &#125;)</span><br><span class="line">  <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;bt&#x27;</span>).<span class="title function_">click</span>()</span><br><span class="line">  <span class="keyword">const</span> actualValue = <span class="string">&#x27;修改了值为此~&#x27;</span></span><br><span class="line">  <span class="title function_">expect</span>(vue.<span class="property">name</span>).<span class="title function_">toBe</span>(actualValue)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+
+<h2 id="4-3-测试结果"><a href="#4-3-测试结果" class="headerlink" title="4.3. 测试结果"></a>4.3. 测试结果</h2><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220720123743581.png" alt="image-20220720123743581"></p>
+<h2 id="4-4-测试覆盖率"><a href="#4-4-测试覆盖率" class="headerlink" title="4.4. 测试覆盖率"></a>4.4. 测试覆盖率</h2><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220722113152793.png" alt="image-20220722113152793"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220722113218413.png" alt="image-20220722113218413"></p>
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/%E8%BD%AF%E5%B7%A5%E2%85%A1%E5%A4%A7%E4%BD%9C%E4%B8%9A%E5%BF%83%E5%BE%97/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/Spring%E5%AD%A6%E4%B9%A0/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>

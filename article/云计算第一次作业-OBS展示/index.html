@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      云计算第一次作业-OBS展示 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Sep 21, 2022
+  </h3>
+  <h1>
+    云计算第一次作业-OBS展示
+  </h1>
+  <div class="content markdown-body">
+    <h1 id="一、过程记录"><a href="#一、过程记录" class="headerlink" title="一、过程记录"></a>一、过程记录</h1><h2 id="1-网络测试"><a href="#1-网络测试" class="headerlink" title="1. 网络测试"></a>1. 网络测试</h2><h3 id="1-1-测试过程描述：虚拟机申请过程、测试工具、操作过程"><a href="#1-1-测试过程描述：虚拟机申请过程、测试工具、操作过程" class="headerlink" title="1.1. 测试过程描述：虚拟机申请过程、测试工具、操作过程"></a>1.1. 测试过程描述：虚拟机申请过程、测试工具、操作过程</h3><h3 id="1-2-跨区域公网：虚拟机网络配置情况-测试结果"><a href="#1-2-跨区域公网：虚拟机网络配置情况-测试结果" class="headerlink" title="1.2. 跨区域公网：虚拟机网络配置情况 + 测试结果"></a>1.2. 跨区域公网：虚拟机网络配置情况 + 测试结果</h3><p>客户端</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220921205319574.png" alt="image-20220921205319574"></p>
+<p>服务器端</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220921205336815.png" alt="image-20220921205336815"></p>
+<h3 id="1-3-同区域跨可用区公网：虚拟机网络配置情况-测试结果"><a href="#1-3-同区域跨可用区公网：虚拟机网络配置情况-测试结果" class="headerlink" title="1.3. 同区域跨可用区公网：虚拟机网络配置情况 + 测试结果"></a>1.3. 同区域跨可用区公网：虚拟机网络配置情况 + 测试结果</h3><h3 id="1-3-1-公网"><a href="#1-3-1-公网" class="headerlink" title="1.3.1. 公网"></a>1.3.1. 公网</h3><p>客户端</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220921191009640.png" alt="image-20220921191009640"></p>
+<p>服务器端</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220921191000516.png" alt="image-20220921191000516"></p>
+<h3 id="1-3-2-私网"><a href="#1-3-2-私网" class="headerlink" title="1.3.2. 私网"></a>1.3.2. 私网</h3><p>服务器端</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220921203324190.png" alt="image-20220921203324190"></p>
+<p>客户端</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220921203335678.png" alt="image-20220921203335678"></p>
+<h3 id="1-4-同可用区公网-私网：虚拟机网络配置情况-测试结果"><a href="#1-4-同可用区公网-私网：虚拟机网络配置情况-测试结果" class="headerlink" title="1.4. 同可用区公网+私网：虚拟机网络配置情况 + 测试结果"></a>1.4. 同可用区公网+私网：虚拟机网络配置情况 + 测试结果</h3><h4 id="1-4-1-公网"><a href="#1-4-1-公网" class="headerlink" title="1.4.1. 公网"></a>1.4.1. 公网</h4><p>客户端</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220921154258878.png" alt="image-20220921154258878"></p>
+<p>服务器端</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220921154328161.png" alt="image-20220921154328161"></p>
+<h4 id="1-4-2-私网"><a href="#1-4-2-私网" class="headerlink" title="1.4.2. 私网"></a>1.4.2. 私网</h4><p>客户端</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220921154807390.png" alt="image-20220921154807390"></p>
+<p>服务器端</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220921154817551.png" alt="image-20220921154817551"></p>
+<h2 id="2-个人主页"><a href="#2-个人主页" class="headerlink" title="2. 个人主页"></a>2. 个人主页</h2><p>（1）对应的 OBS 链接</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://pengzna-cloud-computing.obs.cn-east-3.myhuaweicloud.com/">https://pengzna-cloud-computing.obs.cn-east-3.myhuaweicloud.com</a></li>
+</ul>
+<p>（2）上传的 obs 图片链接</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://pengzna-cloud-computing.obs.cn-east-3.myhuaweicloud.com/5612488132C6F7BAB6B1C96D04075AA7.png">https://pengzna-cloud-computing.obs.cn-east-3.myhuaweicloud.com/5612488132C6F7BAB6B1C96D04075AA7.png</a></li>
+</ul>
+<p>（3）个人主页地址（公网 IP）</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="http://116.204.103.36/">http://116.204.103.36/</a></li>
+</ul>
+<h1 id="二、详细作业叙述"><a href="#二、详细作业叙述" class="headerlink" title="二、详细作业叙述"></a>二、详细作业叙述</h1><ol>
+<li>201250214-彭俊植</li>
+<li>网络测试：</li>
+</ol>
+<ul>
+<li><p><strong>虚拟机申请过程：</strong></p>
+<ul>
+<li>虚拟机 ①<ul>
+<li>华北-乌兰察布一&#x2F;可用区 2</li>
+<li>ID：test0921-wlcb2qu</li>
+<li>配置 1C4G；系统镜像 CentOS 8.2 64bit；按需计费</li>
+<li>带宽：5 Mbit&#x2F;s</li>
+<li>公网 ip：116.204.103.253；私网 ip：192.168.0.173</li>
+</ul>
+</li>
+<li>虚拟机 ②<ul>
+<li>华北-乌兰察布一&#x2F;可用区 2</li>
+<li>ID：test0921-wlcb2qu-02</li>
+<li>配置 1C4G；系统镜像 CentOS 8.2 64bit；按需计费</li>
+<li>带宽：5 Mbit&#x2F;s</li>
+<li>公网 ip：116.204.103.36；私网 ip：192.168.0.83</li>
+</ul>
+</li>
+<li>虚拟机 ③<ul>
+<li>华北-乌兰察布一&#x2F;可用区 3</li>
+<li>ID：test0921-wlcb3qu</li>
+<li>配置 1C4G；系统镜像 CentOS 8.2 64bit；按需计费</li>
+<li>带宽：5 Mbit&#x2F;s</li>
+<li>公网 ip：121.37.97.146；私网 ip：192.168.0.128</li>
+</ul>
+</li>
+<li>虚拟机 ④<ul>
+<li>西南-贵阳一&#x2F;可用区 1</li>
+<li>ID：test0921-guiyang1qu</li>
+<li>配置 1C4G；系统镜像 CentOS 8.2 64bit；按需计费</li>
+<li>带宽：5 Mbit&#x2F;s</li>
+<li>公网 ip：140.210.210.244；私网 ip：192.168.0.109</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>测试工具</strong>：iperf 3.1.3</p>
+</li>
+<li><p><strong>操作过程</strong></p>
+<ul>
+<li>先按如上配置申请四台虚拟机，并开放必要的 5000、22、ICMP 等端口，并安装 iperf 3.1.3。随后分别按作业要求所述的三种情况展开测试。</li>
+<li>测试手段如下：同时开启两台虚拟机，一台作为客户端，一台作为服务端。先在服务端运行命令<code>iperf3 –s –i 5 –p 5000</code>，再于客户端运行命令<code>Iperf3 –c $&#123;serverIP&#125; –i 5 –t 100 –p 5000</code>。其中客户端中第二个参数填上服务端的 ip（可视实验情况选择填写公网 ip 或私网 ip）。观察屏幕输出结果，并进行记录。</li>
+</ul>
+</li>
+<li><p><strong>跨区域</strong></p>
+<ul>
+<li>公网：服务端为 wlcb2qu-02，客户端为 guiyang1qu。测试结果为客户端 sender 5.18 Mbits&#x2F;sec，receiver 4.85 Mbits&#x2F;sec，服务端 receiver 4.85 Mbits&#x2F;sec</li>
+<li>私网：ping 不通</li>
+</ul>
+</li>
+<li><p><strong>同区域跨可用区</strong></p>
+<ul>
+<li>公网：服务端为 wlcb3qu ，客户端为 wlcb2qu-02。测试结果为客户端 sender 5.56 Mbits&#x2F;sec，receiver 5.46 Mbits&#x2F;sec，服务端 receiver 5.46 Mbits&#x2F;sec</li>
+<li>私网：可 ping 通，服务端为 wlcb3qu，客户端为 wlcb2qu-02。测试结果为客户端 sender 531 Mbits&#x2F;sec，receiver 531 Mbits&#x2F;sec，服务端 receiver 531 Mbits&#x2F;sec</li>
+</ul>
+</li>
+<li><p><strong>同区域同可用区</strong></p>
+<ul>
+<li><p>公网：服务端为 wlcb2qu-02 ，客户端为 wlcb2qu。测试结果为客户端 sender 5.38 Mbits&#x2F;sec，receiver 5.35 Mbits&#x2F;sec，服务端 receiver 5.34 Mbits&#x2F;sec</p>
+</li>
+<li><p>私网：可 ping 通，服务端为 wlcb2qu，客户端为 wlcb2qu-02。测试结果为客户端 sender 55.4 Gbits&#x2F;sec，receiver 55.4 Gbits&#x2F;sec，服务端 receiver 55.4 Gbits&#x2F;sec</p>
+<p>3.个人主页</p>
+</li>
+</ul>
+</li>
+</ul>
+<p>（1）对应的 OBS 链接</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://pengzna-cloud-computing.obs.cn-east-3.myhuaweicloud.com/">https://pengzna-cloud-computing.obs.cn-east-3.myhuaweicloud.com</a></li>
+</ul>
+<p>（2）上传的 obs 图片链接</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://pengzna-cloud-computing.obs.cn-east-3.myhuaweicloud.com/5612488132C6F7BAB6B1C96D04075AA7.png">https://pengzna-cloud-computing.obs.cn-east-3.myhuaweicloud.com/5612488132C6F7BAB6B1C96D04075AA7.png</a></li>
+</ul>
+<p>（3）个人主页地址</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="http://116.204.103.36/">http://116.204.103.36/</a> （部署在虚拟机 ② 上）</li>
+</ul>
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/%E5%9F%BA%E4%BA%8ERedis%E5%8F%91%E5%B8%83%E8%AE%A2%E9%98%85%E5%AE%9E%E7%8E%B0IM%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/Coursera-Machine-Learning-01/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>

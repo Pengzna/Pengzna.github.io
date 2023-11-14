@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      Spring学习-1 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Jul 25, 2022
+  </h3>
+  <h1>
+    Spring学习-1
+  </h1>
+  <div class="content markdown-body">
+    <h2 id="1-1-Spring-IoC-Container-Bean"><a href="#1-1-Spring-IoC-Container-Bean" class="headerlink" title="1.1. Spring IoC Container &amp; Bean"></a>1.1. Spring IoC Container &amp; Bean</h2><blockquote>
+<p>IoC 也成为依赖注入，是对象仅通过<strong>*构造函数参数、工厂方法的参数 或在对象实例被构造 或从工厂方法返回后在对象实例上设置的属性来定义它们的依赖项</strong>。*</p>
+</blockquote>
+<ul>
+<li>容器在创建 Bean 时注入这些依赖性。这个过程是 Bean 本身的逆过程，因此得名控制反转<ul>
+<li><a target="_blank" rel="noopener" href="https://blog.csdn.net/sinat_36817189/article/details/123410280">(26 条消息) 浅谈控制反转（IoC）<em>米碎师兄的博客-CSDN 博客</em>控制反转</a></li>
+</ul>
+</li>
+<li>在 Spring 中，构成应用程序主干并由 Spring IoC 容器管理的对象称为 bean。</li>
+<li>bean 是由 Spring IoC 容器实例化、组装和管理的对象。 否则，bean 只是应用程序中众多对象之一。 Bean 以及它们之间的依赖关系反映在容器使用的配置元数据中。</li>
+</ul>
+<h2 id="1-2-容器概述"><a href="#1-2-容器概述" class="headerlink" title="1.2. 容器概述"></a>1.2. 容器概述</h2><blockquote>
+<p><code>org.springframework.context.ApplicationContext</code> 接口代表 Spring IoC 容器，负责实例化、配置和组装 bean。 容器通过读取配置元数据来获取有关要实例化、配置和组装哪些对象的指令。 配置元数据以 XML、**<em>Java 注解</em>**或 Java 代码表示。 它可以让您表达组成应用程序的对象以及这些对象之间丰富的相互依赖关系。</p>
+</blockquote>
+<ul>
+<li>一般来说，创建并初始化了<code>ApplicationContext</code>后，就有了一个完全配置且可执行的系统或应用程序</li>
+</ul>
+<h3 id="1-2-1-配置元数据"><a href="#1-2-1-配置元数据" class="headerlink" title="1.2.1. 配置元数据"></a>1.2.1. 配置元数据</h3><p>方式主要有三</p>
+<ul>
+<li>基于 XML（基本用不到，不详述）</li>
+<li>基于注解（后文提到）</li>
+<li>基于 Java（后文提到）</li>
+</ul>
+<h3 id="1-2-2-实例化容器"><a href="#1-2-2-实例化容器" class="headerlink" title="1.2.2. 实例化容器"></a>1.2.2. 实例化容器</h3><ul>
+<li>Spring 的实例化用的比较少了，略</li>
+</ul>
+<h3 id="1-2-3-使用容器"><a href="#1-2-3-使用容器" class="headerlink" title="1.2.3. 使用容器"></a>1.2.3. 使用容器</h3><ul>
+<li>Spring 的实例化用的比较少了，略</li>
+</ul>
+<h2 id="1-3-Bean-概述"><a href="#1-3-Bean-概述" class="headerlink" title="1.3. Bean 概述"></a>1.3. Bean 概述</h2><ul>
+<li>略</li>
+</ul>
+<h2 id="1-4-依赖关系"><a href="#1-4-依赖关系" class="headerlink" title="1.4. 依赖关系"></a>1.4. 依赖关系</h2><h3 id="1-4-1-依赖注入"><a href="#1-4-1-依赖注入" class="headerlink" title="1.4.1. 依赖注入"></a>1.4.1. 依赖注入</h3><ul>
+<li>基于构造函数的依赖注入<ul>
+<li>基于构造函数的 DI 是通过容器调用具有多个参数的构造函数来完成的，每个参数代表一个依赖项。 调用带有特定参数的 <code>static</code> 工厂方法来构造 bean 几乎是等效的，本讨论将类似地处理构造函数和 <code>static</code> 工厂方法的参数。 以下示例显示了一个只能使用构造函数注入进行依赖注入的类</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">SimpleMovieLister</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// the SimpleMovieLister has a dependency on a MovieFinder</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> MovieFinder movieFinder;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// a constructor so that the Spring container can inject a MovieFinder</span></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">SimpleMovieLister</span><span class="params">(MovieFinder movieFinder)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.movieFinder = movieFinder;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// business logic that actually uses the injected MovieFinder is omitted...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>SpringBoot 中多用注解结合构造函数进行 DI</p>
+<ul>
+<li>构造函数参数解析<ul>
+<li>构造函数参数解析匹配通过使用参数的类型发生。 如果 bean 定义的构造函数参数中不存在潜在的歧义，那么在 bean 定义中定义构造函数参数的顺序就是在实例化 bean 时将这些参数提供给适当的构造函数的顺序。</li>
+</ul>
+</li>
+<li>Spring 中构造函数消歧义的问题<ul>
+<li>略，SpringBoot 中很少碰到</li>
+</ul>
+</li>
+<li>依赖解析流程<ul>
+<li>容器执行 bean 依赖解析如下：<ul>
+<li><code>ApplicationContext</code> 是用描述所有 bean 的配置元数据创建和初始化的。 配置元数据可以由 XML、Java 代码或注解指定。</li>
+<li>对于每个 bean，它的依赖关系以属性、构造函数参数或静态工厂方法的参数（如果您使用它而不是普通构造函数）的形式表示。 在实际创建 bean 时，将这些依赖关系提供给 bean。</li>
+<li>每个属性或构造函数参数都是要设置的值的实际定义，或者是对容器中另一个 bean 的引用。</li>
+<li>作为值的每个属性或构造函数参数都从其指定格式转换为该属性或构造函数参数的实际类型。 默认情况下，Spring 可以将字符串格式提供的值转换为所有内置类型，例如 <code>int</code>、<code>long</code>、<code>String</code>、<code>boolean</code> 等等。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="1-5-基于注解的容器配置"><a href="#1-5-基于注解的容器配置" class="headerlink" title="1.5. 基于注解的容器配置"></a>1.5. 基于注解的容器配置</h2><h3 id="1-5-1-Required"><a href="#1-5-1-Required" class="headerlink" title="1.5.1. @Required"></a>1.5.1. @Required</h3><p><code>@Required</code> 注解适用于 bean 属性 setter 方法，如下例所示：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">SimpleMovieLister</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> MovieFinder movieFinder;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Required</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setMovieFinder</span><span class="params">(MovieFinder movieFinder)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.movieFinder = movieFinder;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此注解表明必须在配置时通过 bean 定义中的显式属性值或通过自动装配来填充受影响的 bean 属性。 如果尚未填充受影响的 bean 属性，则容器将引发异常。 避免以后出现 <code>NullPointerException</code> 实例等。</p>
+<blockquote>
+<p><code>@Required</code> 注解和 <code>RequiredAnnotationBeanPostProcessor</code> 从 Spring Framework 5.1 开始正式弃用，赞成使用构造函数注入进行所需设置（或 <code>InitializingBean.afterPropertiesSet 的自定义实现 ()</code> 或自定义 <code>@PostConstruct</code> 方法以及 bean 属性 setter 方法）</p>
+</blockquote>
+<h3 id="1-5-2-Autowired"><a href="#1-5-2-Autowired" class="headerlink" title="1.5.2. @Autowired"></a>1.5.2. @Autowired</h3><p>您可以将 <code>@Autowired</code> 注解应用于构造函数</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MovieRecommender</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> CustomerPreferenceDao customerPreferenceDao;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">MovieRecommender</span><span class="params">(CustomerPreferenceDao customerPreferenceDao)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.customerPreferenceDao = customerPreferenceDao;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>从 Spring Framework 4.3 开始，如果目标 bean 只定义了一个构造函数，则不再需要在这样的构造函数上添加 <code>@Autowired</code> 注解。 但是，如果有多个构造函数可用且没有主&#x2F;默认构造函数，则必须至少用 <code>@Autowired</code> 注解其中一个构造函数，以便指示容器使用哪一个。</p>
+</blockquote>
+<p>您还可以将 <code>@Autowired</code> 注解应用于 <em>传统</em> setter 方法，如以下示例所示：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">SimpleMovieLister</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> MovieFinder movieFinder;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setMovieFinder</span><span class="params">(MovieFinder movieFinder)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.movieFinder = movieFinder;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>您还可以将注解应用于具有任意名称和多个参数的方法，如以下示例所示：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MovieRecommender</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> MovieCatalog movieCatalog;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> CustomerPreferenceDao customerPreferenceDao;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">prepare</span><span class="params">(MovieCatalog movieCatalog,</span></span><br><span class="line"><span class="params">            CustomerPreferenceDao customerPreferenceDao)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.movieCatalog = movieCatalog;</span><br><span class="line">        <span class="built_in">this</span>.customerPreferenceDao = customerPreferenceDao;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>您也可以将 <code>@Autowired</code> 应用于字段，甚至将其与构造函数混合，如下例所示：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MovieRecommender</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> CustomerPreferenceDao customerPreferenceDao;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> MovieCatalog movieCatalog;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">MovieRecommender</span><span class="params">(CustomerPreferenceDao customerPreferenceDao)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.customerPreferenceDao = customerPreferenceDao;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>您还可以通过将 <code>@Autowired</code> 注解添加到需要该类型数组的字段或方法来指示 Spring 从 <code>ApplicationContext</code> 提供特定类型的所有 bean，如 以下示例显示：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MovieRecommender</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> MovieCatalog[] movieCatalogs;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>默认情况下，当给定注入点没有匹配的候选 bean 可用时，自动装配失败。 对于声明的数组、集合或映射，至少需要一个匹配元素。</p>
+<p>默认行为是将带注解的方法和字段视为指示所需的依赖项。 您可以更改此行为，如下例所示，通过将不可满足的注入点标记为非必需（即，通过在 <code>@ 自动连线</code>到<code>false</code>）：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">SimpleMovieLister</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> MovieFinder movieFinder;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired(required = false)</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setMovieFinder</span><span class="params">(MovieFinder movieFinder)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.movieFinder = movieFinder;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-5-3-Primary"><a href="#1-5-3-Primary" class="headerlink" title="1.5.3. @Primary"></a>1.5.3. @Primary</h3><ul>
+<li><code>@Primary</code> 表示当多个 bean 是自动装配到单值依赖项的候选者时，应优先考虑特定 bean。 如果候选中恰好存在一个主要 bean，则它成为自动装配的值。</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MovieConfiguration</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="meta">@Primary</span></span><br><span class="line">    <span class="keyword">public</span> MovieCatalog <span class="title function_">firstMovieCatalog</span><span class="params">()</span> &#123; ... &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="keyword">public</span> MovieCatalog <span class="title function_">secondMovieCatalog</span><span class="params">()</span> &#123; ... &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-5-4-使用泛型作为自动装配限定符"><a href="#1-5-4-使用泛型作为自动装配限定符" class="headerlink" title="1.5.4. 使用泛型作为自动装配限定符"></a>1.5.4. 使用泛型作为自动装配限定符</h3><ul>
+<li>可以用泛型和<code>@Autowired</code>搭配装配</li>
+</ul>
+<h3 id="1-5-5-Resource"><a href="#1-5-5-Resource" class="headerlink" title="1.5.5. @Resource"></a>1.5.5. @Resource</h3><p>Spring 还通过在字段或 bean 属性 setter 方法上使用 JSR-250 <code>@Resource</code> 注解 (<code>javax.annotation.Resource</code>) 来支持注入。</p>
+<p>在没有指定显式名称的 <code>@Resource</code> 用法的唯一情况下，与 <code>@Autowired</code> 类似，<code>@Resource</code> 找到主要类型匹配而不是 一个特定的命名 bean 并解析众所周知的可解析依赖项：<code>BeanFactory</code>、<code>ApplicationContext</code>、<code>ResourceLoader</code>、<code>ApplicationEventPublisher</code> 和 <code>MessageSource</code> 接口。</p>
+<h3 id="1-5-6-Value"><a href="#1-5-6-Value" class="headerlink" title="1.5.6. @Value"></a>1.5.6. @Value</h3><p><code>@Value</code> 通常用于注入外化属性：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Component</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MovieRecommender</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> String catalog;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">MovieRecommender</span><span class="params">(<span class="meta">@Value(&quot;$&#123;catalog.name&#125;&quot;)</span> String catalog)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.catalog = catalog;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>使用以下配置：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="meta">@PropertySource(&quot;classpath:application.properties&quot;)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">AppConfig</span> &#123; &#125;</span><br></pre></td></tr></table></figure>
+
+<p>以及以下 <code>application.properties</code> 文件：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">catalog.name=MovieCatalog</span><br></pre></td></tr></table></figure>
+
+<p>在这种情况下，<code>catalog</code> 参数和字段将等于 <code>MovieCatalog</code> 值。</p>
+<p>Spring 提供了一个默认的宽松嵌入值解析器。 它将尝试解析属性值，如果无法解析，则属性名称（例如 <code>$&#123;catalog.name&#125;</code>）将作为值注入。 如果你想对不存在的值保持严格的控制，你应该声明一个 <code>PropertySourcesPlaceholderConfigurer</code> bean，如下例所示：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">AppConfig</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> PropertySourcesPlaceholderConfigurer <span class="title function_">propertyPlaceholderConfigurer</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">PropertySourcesPlaceholderConfigurer</span>();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>Spring Boot 默认配置一个 <code>PropertySourcesPlaceholderConfigurer</code> bean，它将从 <code>application.properties</code> 和 <code>application.yml</code> 文件中获取属性。</p>
+</blockquote>
+<p>当 <code>@Value</code> 包含 <a target="_blank" rel="noopener" href="https://geekdoc.top/docs/languages/java/spring-framework/5.3.11/reference/html/core.html#expressions"><code>SpEL</code> 表达式</a> 时，该值将在运行时动态计算，如下例所示：</p>
+<ul>
+<li>注：SpEL 表达式是 Spring 表达式语言</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Component</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MovieRecommender</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> String catalog;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">MovieRecommender</span><span class="params">(<span class="meta">@Value(&quot;#&#123;systemProperties[&#x27;user.catalog&#x27;] + &#x27;Catalog&#x27; &#125;&quot;)</span> String catalog)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.catalog = catalog;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-5-7-Component-和进一步的定型注解"><a href="#1-5-7-Component-和进一步的定型注解" class="headerlink" title="1.5.7. @Component 和进一步的定型注解"></a>1.5.7. @Component 和进一步的定型注解</h3><p><code>@Repository</code> 注解是任何实现存储库角色或构造型（也称为数据访问对象或 DAO）的类的标记。 此标记的用途之一是自动转换异常。</p>
+<p>Spring 提供了更多构造型注解：<code>@Component</code>、<code>@Service</code> 和 <code>@Controller</code>。 <code>@Component</code> 是任何 Spring 管理的组件的通用构造型。</p>
+<p><code>@Repository</code>、<code>@Service</code> 和 <code>@Controller</code> 是 <code>@Component</code> 的特化，用于更具体的用例（在分别为持久层、服务层和表示层）。因此，您可以使用 <code>@Component</code> 注解您的组件类，但是，通过使用 <code>@Repository</code>、<code>@Service</code> 或 <code>@ 注解它们Controller</code> 相反，您的类更适合由工具处理或与切面相关联。例如，这些构造型注解是切入点的理想目标。 <code>@Repository</code>、<code>@Service</code> 和 <code>@Controller</code> 还可以在 Spring Framework 的未来版本中携带额外的语义。因此，如果您在服务层使用 <code>@Component</code> 或 <code>@Service</code> 之间做出选择，<code>@Service</code> 显然是更好的选择。同样，如前所述，<code>@Repository</code> 已经被支持作为持久层中自动异常转换的标记。</p>
+<h2 id="1-6-基于-Java-的容器配置"><a href="#1-6-基于-Java-的容器配置" class="headerlink" title="1.6. 基于 Java 的容器配置"></a>1.6. 基于 Java 的容器配置</h2><h3 id="1-6-1-Bean-和-Component"><a href="#1-6-1-Bean-和-Component" class="headerlink" title="1.6.1. @Bean 和@Component"></a>1.6.1. @Bean 和@Component</h3><p>Spring 的新 Java 配置支持中的核心工件是 <code>@Configuration</code> 注解类和 <code>@Bean</code> 注解方法。</p>
+<p><code>@Bean</code> 注解用于指示一个方法实例化、配置和初始化一个由 Spring IoC 容器管理的新对象。 对于熟悉 Spring 的 &#96;&#96;XML 配置的人来说，<code> </code>@Bean<code>注解与元素扮演着相同的角色。 您可以将带有</code>@Bean<code>注解的方法与任何 Spring</code>@Component<code>一起使用。 然而，它们最常与</code>@Configuration&#96; bean 一起使用。</p>
+<p>用 <code>@Configuration</code> 注解一个类表明它的主要目的是作为 bean 定义的来源。 此外，<code>@Configuration</code> 类允许通过调用同一类中的其他 <code>@Bean</code> 方法来定义 bean 间的依赖关系。 最简单的 <code>@Configuration</code> 类如下：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">AppConfig</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="keyword">public</span> MyService <span class="title function_">myService</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">MyServiceImpl</span>();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h5 id="使用-Component-注解"><a href="#使用-Component-注解" class="headerlink" title="使用 Component 注解"></a>使用 Component 注解</h5><p><code>@Configuration</code> 是一个类级别的注解，表明一个对象是 bean 定义的来源。 <code>@Configuration</code> 类通过带有 <code>@Bean</code> 注解的方法来声明 bean。 对 <code>@Configuration</code> 类上的 <code>@Bean</code> 方法的调用也可用于定义 bean 间的依赖关系。</p>
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/a-MVVM-toy-with-TypeScript/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/Spring%E5%AD%A6%E4%B9%A02/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>

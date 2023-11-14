@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      CMU 15-445: 6. Query Execution 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Oct 27, 2022
+  </h3>
+  <h1>
+    CMU 15-445: 6. Query Execution
+  </h1>
+  <div class="content markdown-body">
+    <h2 id="6-1-Query"><a href="#6-1-Query" class="headerlink" title="6.1. Query"></a>6.1. Query</h2><ul>
+<li>Query operators are arranged in a tree.</li>
+<li>数据从底层向根节点流动</li>
+<li>根节点的输出为 query 的输出</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220929143456391.png" alt="image-20220929143456391"></p>
+<h2 id="6-2-Sorting"><a href="#6-2-Sorting" class="headerlink" title="6.2. Sorting"></a>6.2. Sorting</h2><ul>
+<li>我们在 query 时，时常需要 retrieve tuples in a specific order</li>
+<li>但是 data 通常 not fit in memory（有时需要向磁盘 IO）。我们需要用一种能考虑到 IO 开销的技术</li>
+<li>需要排序算法的原因：<strong>本质在于 tuples 在 table 中没有顺序</strong>，无论是用户还是 DBMS 本身，在处理某些任务时希望 tuples 能够按一定的顺序排列，如：<ul>
+<li>若 tuples 已经排好序，去重操作将变得很容易（DISTINCT)</li>
+<li>批量将排好序的 tuples 插入到 B+ Tree index 中，速度更快</li>
+<li>Aggregations (GROUP BY)</li>
+</ul>
+</li>
+</ul>
+<h3 id="6-2-1-External-Merge-Sort"><a href="#6-2-1-External-Merge-Sort" class="headerlink" title="6.2.1. External Merge Sort"></a>6.2.1. External Merge Sort</h3><p>思想是分治，就是把大数据分成独立的 <strong>*runs*</strong> 再分别 sort 它们。它们可以写回到硬盘，也可以读出来。这个算法包含两步： <strong>Phase #1 - Sorting：</strong> 首先算法会 sort 可以放在内存的小 chunk，然后写回到硬盘中。 <strong>Phase #2 - Merge：</strong> 然后合并这些子文件到一个大的单独文件中。</p>
+<ul>
+<li>Divide-and-conquer sorting（分治排序）<ul>
+<li>先排序：将数据分为多个 chunk，每个 chunk 可以 fit in main-memory，然后将它们排序，再将排好序的 data 写回 disk</li>
+<li>再合并：将排好的 data 合并成一个 larger file</li>
+</ul>
+</li>
+<li>复杂度：见 ppt</li>
+</ul>
+<h4 id="6-2-1-1-2-Way-External-Merge-Sort"><a href="#6-2-1-1-2-Way-External-Merge-Sort" class="headerlink" title="6.2.1.1. 2-Way External Merge Sort"></a>6.2.1.1. 2-Way External Merge Sort</h4><ul>
+<li><p>“2” represents the number of runs that we are going to merge into a new run for each pass.</p>
+</li>
+<li><p>假设：</p>
+<ul>
+<li>Files 本分成 N 个 pages</li>
+<li>DBMS 有 B 个 fixed-size buffers</li>
+</ul>
+</li>
+<li><p><em>Pass #0</em></p>
+<ul>
+<li>从 table 中读入 B pages tuples</li>
+<li>将这些 tuples 排序后<strong>写回</strong>到 disk 中</li>
+<li>每一轮成为一个 run</li>
+</ul>
+</li>
+<li><p><em>Pass #1,2,3,…</em></p>
+</li>
+<li><p>递归地将一对 runs 合并成一个两倍长度的 run</p>
+</li>
+<li><p>这一操作值需要 3 个 buffer pages ( 2 个用于输入，1 个用于输出)</p>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220929145647966.png" alt="image-20220929145647966"></p>
+<h5 id="6-2-1-1-2-双重-buffering-优化"><a href="#6-2-1-1-2-双重-buffering-优化" class="headerlink" title="6.2.1.1.2. 双重 buffering 优化"></a>6.2.1.1.2. 双重 buffering 优化</h5><ul>
+<li>当系统在处理当前 run 的时候，提前将下一次 run 取进第二个 buffer。<ul>
+<li>通过充分利用 disk，减少等待 IO 的时间。</li>
+</ul>
+</li>
+</ul>
+<h4 id="6-2-1-2-General-External-Merge-Sort"><a href="#6-2-1-2-General-External-Merge-Sort" class="headerlink" title="6.2.1.2. General External Merge Sort"></a>6.2.1.2. General External Merge Sort</h4><ul>
+<li>就是把 2-way 泛化成 N-way，充分利用磁盘空间</li>
+</ul>
+<h3 id="6-2-2-Using-B-Tree"><a href="#6-2-2-Using-B-Tree" class="headerlink" title="6.2.2. Using B+ Tree"></a>6.2.2. Using B+ Tree</h3><ul>
+<li>如果需要排序的属性已经有了 B+树索引，我们可以用 B+树来加速排序</li>
+</ul>
+<h2 id="6-3-Aggregation"><a href="#6-3-Aggregation" class="headerlink" title="6.3. Aggregation"></a>6.3. Aggregation</h2><p>aggregation 就是对一组 tuples 的某些值做统计，转化成一个标量，如平均值、最大值、最小值等，aggregation 的实现通常有两种方案：</p>
+<ul>
+<li>Sorting</li>
+</ul>
+<p><img src="https://2836672763-files.gitbook.io/~/files/v0/b/gitbook-legacy-files/o/assets%2F-LMjQD5UezC9P8miypMG%2F-L_joWM39KHaJfccjyzE%2F-L_kEY93VltutLrspExH%2FScreen%20Shot%202019-03-12%20at%2012.51.50%20PM.jpg?alt=media&token=8f780e68-b277-48d4-93b6-ce7ffb61a217" alt="image"></p>
+<ul>
+<li><h2 id="Hashing-不需要排序-在-DBMS-扫描的时候填冲一个暂时的-hash-table，对于每一个-record，检查它是否已经存在于-hash-table-DISTINCT：丢弃-GROUP-BY：进行聚合计算"><a href="#Hashing-不需要排序-在-DBMS-扫描的时候填冲一个暂时的-hash-table，对于每一个-record，检查它是否已经存在于-hash-table-DISTINCT：丢弃-GROUP-BY：进行聚合计算" class="headerlink" title="Hashing- 不需要排序- 在 DBMS 扫描的时候填冲一个暂时的 hash table，对于每一个 record，检查它是否已经存在于 hash table  - DISTINCT：丢弃  - GROUP BY：进行聚合计算"></a>Hashing<br>- 不需要排序<br>- 在 DBMS 扫描的时候填冲一个暂时的 hash table，对于每一个 record，检查它是否已经存在于 hash table<br>  - DISTINCT：丢弃<br>  - GROUP BY：进行聚合计算</h2></li>
+</ul>
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/CMU-15-445-5-Index-Concurrency-Control/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/CMU-15-445-7-Join-Algorithms/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>

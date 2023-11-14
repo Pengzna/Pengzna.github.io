@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      软工Ⅱ大作业心得 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Jul 10, 2022
+  </h3>
+  <h1>
+    软工Ⅱ大作业心得
+  </h1>
+  <div class="content markdown-body">
+    <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 接口类，通过泛型注入具体参数，实现每个方法的参数多态</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">SheetService</span> &lt;SheetVO, SheetState&gt;&#123;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 创建单据</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> userVO 操作用户</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sheetVO 单据VO</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">void</span> <span class="title function_">makeSheet</span><span class="params">(UserVO userVO, SheetVO sheetVO)</span>;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据状态获取单据(state == null 则获取所有单据)</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> state 单据状态</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> 符合条件的所有单据</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    List&lt;SheetVO&gt; <span class="title function_">getSheetByState</span><span class="params">(SheetState state)</span>;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据进货单id进行审批(state == 审批完成&quot;/&quot;审批失败&quot;)</span></span><br><span class="line"><span class="comment">     * 在controller层进行权限控制</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sheetId 单据id</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> state 单据修改后的状态</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">void</span> <span class="title function_">approval</span><span class="params">(String sheetId, SheetState state)</span>;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据单据Id搜索单据信息</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sheetId 单据Id</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> 单据</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    SheetVO <span class="title function_">getSheetById</span><span class="params">(String sheetId)</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 实现类</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">xxxSheetServiceImpl</span> <span class="keyword">implements</span> <span class="title class_">SheetService</span>&lt;xxxSheetVO, xxxSheetState&gt;</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-设计模式"><a href="#2-设计模式" class="headerlink" title="2. 设计模式"></a>2. 设计模式</h3><ul>
+<li>策略模式：<ul>
+<li>将策略方法抽象成接口，用不同的实现类实现它。</li>
+<li>在调用 service 里组合接口类（而不是具体的实现类），根据情况向接口中注入具体的类。</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 策略接口</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">PromotionStrategy</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据type制定不同的促销策略</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> Integer <span class="title function_">makePromotionStrategy</span><span class="params">(PromotionStrategyVO promotionStrategyVO)</span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 实现类略</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// service类（调用strategy）</span></span><br><span class="line"><span class="keyword">public</span> Integer <span class="title function_">makePromotionStrategy</span><span class="params">(PromotionStrategyVO promotionStrategyVO)</span>&#123;</span><br><span class="line">    logger.info(<span class="string">&quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;制定促销策略&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&quot;</span>);</span><br><span class="line">    PromotionStrategy promotionStrategy;</span><br><span class="line">    <span class="comment">// 策略模式</span></span><br><span class="line">    <span class="keyword">switch</span> (promotionStrategyVO.getType())&#123;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">0</span>:</span><br><span class="line">            promotionStrategy = <span class="keyword">new</span> <span class="title class_">UserPromotionStrategy</span>(promotionStrategyDao, customerDao);</span><br><span class="line">            logger.info(<span class="string">&quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;对不同级别用户制定促销策略...&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&quot;</span>);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">1</span>:</span><br><span class="line">            promotionStrategy = <span class="keyword">new</span> <span class="title class_">SpecialPricePromotionStrategy</span>(promotionStrategyDao);</span><br><span class="line">            logger.info(<span class="string">&quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;制定特价包（组合商品降价）...&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&quot;</span>);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">2</span>:</span><br><span class="line">            promotionStrategy = <span class="keyword">new</span> <span class="title class_">TotalAmountPromotionStrategy</span>(promotionStrategyDao);</span><br><span class="line">            logger.info(<span class="string">&quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;针对不同总价制定促销策略...&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&quot;</span>);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">default</span>:</span><br><span class="line">            logger.info(<span class="string">&quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;错误：未指定促销策略类型！&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&quot;</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    logger.info(<span class="string">&quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;完成促销策略制定&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span> promotionStrategy.makePromotionStrategy(promotionStrategyVO);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-定时任务"><a href="#3-定时任务" class="headerlink" title="3. 定时任务"></a>3. 定时任务</h3><ul>
+<li><p>比较简单，主要通过 SpringBoot 的<code>org.springframework.scheduling.annotation.Scheduled</code> 包实现</p>
+</li>
+<li><p>需要书写<code>cron</code> 表达式，跟 Linux 系统的 cron 定时任务语法相似</p>
+</li>
+</ul>
+<h3 id="4-AOP（面向切面编程）"><a href="#4-AOP（面向切面编程）" class="headerlink" title="4. AOP（面向切面编程）"></a>4. AOP（面向切面编程）</h3><ul>
+<li><p>思想：通过预编译方式和运行期间动态代理实现程序功能的统一维护的一种技术。</p>
+<ul>
+<li><p>所谓的切面（Aspect），可以简单理解为程序中的共性功能。AOP 通过关注程序中的共性功能（面），将其通过一些技术（预编译、代理等）进行统一处理，从而减少代码重复，提高效率。</p>
+</li>
+<li><p>一般认为切面 &#x3D; 通知 + 切入点</p>
+<ul>
+<li><blockquote>
+<p>切入点是指我们要对哪些 Joinpoint 进行拦截的定义，通俗的说就是<code>被增强类中的被增强的方法</code>，即切入的地方。注意，被增强类中并不是所有的方法都被代理了</p>
+</blockquote>
+</li>
+<li><blockquote>
+<p>所谓通知是指拦截到 Joinpoint （被增强的方法）之后所要做的事情就是通知，通俗的说就是<code>对被增强的方法进行增强的代码</code>，即要做的事情</p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li><p>典型的 AOP 应用场景有：HTTP request 的鉴权授权、日志记录等</p>
+</li>
+</ul>
+</li>
+<li><p>使用：</p>
+</li>
+</ul>
+<blockquote>
+<p>Spring Boot 使用 AOP 需要添加 spring-boot-starter-aop 依赖，如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&lt;dependency&gt;` `&lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;` `&lt;artifactId&gt;spring-boot-starter-aop&lt;/artifactId&gt;` `&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
+</blockquote>
+<p>代码实例：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 表示当前的类是一个配置类</span></span><br><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="comment">//该注解只能用在类上，作用：代表当前类是一个切面类</span></span><br><span class="line"><span class="comment">// 切面 == 通知 +　切入点</span></span><br><span class="line"><span class="meta">@Aspect</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MyAdviceConfig</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> joinPoint</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@Before</span>：前置通知</span></span><br><span class="line"><span class="comment">     * value：切入点表达式  二者加起来构建成为一个切面</span></span><br><span class="line"><span class="comment">     * JoinPoint：连接点：可以理解为两个圆形的切点，从这个切点就可以获取到当前执行的目标类及方法</span></span><br><span class="line"><span class="comment">     * 前置通知和后置通知的参数的都是 JoinPoint， 前置后置通知都没有返回值</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="comment">// 方法级别：具体到某个具体的方法</span></span><br><span class="line">    <span class="comment">// @Before(value = &quot;execution(* com.xxx.xxx.service.impl.*.*(..))&quot;)</span></span><br><span class="line">    <span class="comment">// value值里可以加权限控制，比如public * com.xxx.xxx等</span></span><br><span class="line">    <span class="comment">// 表示service包下的所有类所有方法都执行该前置通知</span></span><br><span class="line">    <span class="meta">@Before(value = &quot;within(com.xxx.xxx.service.*)&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">before</span><span class="params">(JoinPoint joinPoint)</span> &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;before开始执行查询.......&quot;</span>);</span><br><span class="line">        System.out.println(<span class="string">&quot;正在执行的目标类是: &quot;</span> + joinPoint.getTarget());</span><br><span class="line">        System.out.println(<span class="string">&quot;正在执行的目标方法是: &quot;</span> + joinPoint.getSignature().getName());</span><br><span class="line">        System.out.println(<span class="string">&quot;正在执行的目标方法参数是: &quot;</span> + joinPoint.getArgs());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 后置通知，属性参数同上面的前置通知</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> joinPoint 前置通知和后置通知独有的参数</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="meta">@After(value = &quot;execution(* com.xxx.xxx.service.impl.*.*(..))&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">after</span><span class="params">(JoinPoint joinPoint)</span> &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;after查询结束.......&quot;</span>);</span><br><span class="line">        <span class="comment">// 获取执行目标类和方法名等等</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> proceedingJoinPoint 环绕通知的正在执行中的连接点（这是环绕通知独有的参数）</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> 目标方法执行的返回值</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@Around</span>: 环绕通知，有返回值，环绕通知必须进行放行方法（就相当于拦截器），否则目标方法无法执行)</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="meta">@Around(value = &quot;execution(* com.xxx.xxx.service.impl.*.*(..))&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> Object <span class="title function_">aroud</span><span class="params">(ProceedingJoinPoint proceedingJoinPoint)</span> <span class="keyword">throws</span> Throwable &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;aroud环绕通知开始.......&quot;</span>);</span><br><span class="line">        System.out.println(<span class="string">&quot;执行的目标类 = &quot;</span> + proceedingJoinPoint.getTarget());</span><br><span class="line">        System.out.println(<span class="string">&quot;执行的目标方法 = &quot;</span> + proceedingJoinPoint.getSignature().getName());</span><br><span class="line">        <span class="comment">// 必须方法目标方法</span></span><br><span class="line">        <span class="type">Object</span> <span class="variable">proceed</span> <span class="operator">=</span> proceedingJoinPoint.proceed();</span><br><span class="line">        System.out.println(<span class="string">&quot;aroud环绕通知结束.......&quot;</span>);</span><br><span class="line">        <span class="comment">// 将目标方法的返回值进行返回，否则调用目标方法的方法无法获取到返回值</span></span><br><span class="line">        <span class="keyword">return</span> proceed;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-Bean-的装配"><a href="#5-Bean-的装配" class="headerlink" title="5. Bean 的装配"></a>5. Bean 的装配</h3><ul>
+<li><p>这里主要记录踩到的坑，具体的知识点较为庞杂，在本周的学习中进行具体的记录</p>
+</li>
+<li><p>主要是装配时发生了空指针异常，而异常类已经标上了相关注解。百思不得其解，最后发现 SpringBoot 对 bean 的装配是自动管理，即不需要程序员手动 new。而一旦程序员手动 new，SpringBoot 即认为程序员接管了装配，不再进行自动配置。而本人的异常即为手动 new 了对象造成。</p>
+</li>
+</ul>
+<h2 id="MyBatis"><a href="#MyBatis" class="headerlink" title="MyBatis"></a>MyBatis</h2><ul>
+<li>resultType &#x2F; resultMap<ul>
+<li>用于指定返回类，用途相似，一般用 resultType 更方便。详细的知识点在之后的文档学习中具体记录。</li>
+</ul>
+</li>
+</ul>
+<h2 id="Jenkins"><a href="#Jenkins" class="headerlink" title="Jenkins"></a>Jenkins</h2><ul>
+<li><p>Agent</p>
+<ul>
+<li>可以简单理解为执行 pipeline 的环境。一般选择代码构建所需的环境。</li>
+<li><blockquote>
+<p>在配置前端 Jenkins 时，曾遇到 npm: not found 错误。原因是 Jenkins 所在容器未安装 nodejs，也并未挂载宿主机的 nodejs 脚本。解决方法是配置 node 某个版本（我用的是 node: 14)的 agent。在 agent 中执行 npm</p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li><p>Pipeline</p>
+<ul>
+<li>简单的说就是 Jenkins 执行的一个个任务。可以按照环境清理（Image clear）、环境准备（Prepare）、构建（Build）、测试（Test）、打包（Deploy）等步骤细分</li>
+</ul>
+</li>
+<li><p>Docker in docker</p>
+<ul>
+<li>由于我的 Jenkins 部署在 docker 中，而有时需要在 Jenkins 环境下执行 docker 命令，即（Docker in docker），我是通过挂载宿主机的 docker 脚本和 docker.sock 实现的</li>
+</ul>
+</li>
+</ul>
+<h2 id="Gitlab-runner"><a href="#Gitlab-runner" class="headerlink" title="Gitlab-runner"></a>Gitlab-runner</h2><ul>
+<li><p>基本配置</p>
+<ul>
+<li>基本照着网上的教程一路走下来即可。踩的一个大坑是需要手动在配置文件里指定<code>clone_url</code> （仓库的地址）。并且这个地址亲测不能是 ci&#x2F;cd 页面给的 http 地址，必须与仓库 url 一致（如果是 https 必须是 https）。但是由此在设置<code>artifact</code> 时可能会带来请求拦截问题，目前尚未解决。</li>
+</ul>
+</li>
+<li><p>Volumes</p>
+<ul>
+<li>与上述 Jenkins 同样，需要挂载宿主机的 docker 脚本和 docker.sock 来实现 Docker in docker</li>
+</ul>
+</li>
+<li><p>Type</p>
+<ul>
+<li>我用的是 docker，没试过 shell 等其他类型</li>
+</ul>
+</li>
+</ul>
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/%E5%8D%9A%E5%AE%A2%E8%A3%85%E4%BF%AE%E6%97%A5%E5%BF%97/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/a-MVVM-toy-with-TypeScript/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>

@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      DOM复习及前端架构 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Jul 25, 2022
+  </h3>
+  <h1>
+    DOM复习及前端架构
+  </h1>
+  <div class="content markdown-body">
+    <h2 id="1-DOM基础"><a href="#1-DOM基础" class="headerlink" title="1. DOM基础"></a>1. DOM基础</h2><ul>
+<li>DOM是Document Object Model的简写，文档对象模型</li>
+<li>DOM是HTML的编程接口</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220714162844731.png" alt="image-20220714162844731"></p>
+<p>HTML文件和DOM树是一一对应的关系</p>
+<h3 id="1-1-DOM基本操作"><a href="#1-1-DOM基本操作" class="headerlink" title="1.1. DOM基本操作"></a>1.1. DOM基本操作</h3><h4 id="1-1-1-查"><a href="#1-1-1-查" class="headerlink" title="1.1.1. 查"></a>1.1.1. 查</h4><ol>
+<li><p>通过id查找</p>
+<p><code>document.getElementById(&#39;&#39;)</code></p>
+</li>
+<li><p>通过标签名查找</p>
+<p><code>document.getElementsByTagName(&#39;&#39;)</code></p>
+<p>返回的是NodeList（类数组的对象）</p>
+</li>
+<li><p>通过class查找</p>
+<p><code>document.getElementsByClass(&#39;&#39;)</code></p>
+</li>
+<li><p>根据传入的css选择器，查找匹配的DOM结点</p>
+<ol>
+<li><code>document.querySelector(&quot;p&quot;)</code> 只返回第一个匹配到的DOM结点</li>
+<li><code>document.querySelectorAll(&quot;.detail&quot;)</code> 返回类为detail的所有DOM结点的集合<ol>
+<li>eg: <code>document.querySelectorAll(&quot;ul &gt; li&quot;)</code>; 匹配嵌套在ul中的所有li元素</li>
+<li><code>document.querySelectorAll(&quot;img+h3&quot;)</code>；匹配所有紧邻在img后的h3元素</li>
+<li><code>document.querySelectorAll(&#39;[data-index]&#39;)</code>; 匹配所有有data-index属性的元素</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p>根据已获取的结点，拿到该节点的子节点或父节点</p>
+<ol>
+<li><code>document.getElementById(&#39;&#39;).parentNode / nextElementSibling / [0]</code></li>
+</ol>
+</li>
+</ol>
+<h4 id="1-1-2-改"><a href="#1-1-2-改" class="headerlink" title="1.1.2. 改"></a>1.1.2. 改</h4><ol>
+<li><p>改innerHTML</p>
+<p><code>dom.innerHTML = &quot;&lt;strong&gt;修改内容&lt;strong&gt;&quot;</code></p>
+</li>
+<li><p>改textContent</p>
+<p><code>dom.textContent = &quot;修改text内容&quot;</code></p>
+</li>
+<li><p>修改style值</p>
+<p><code>dom.style = &quot;color: blue&quot;</code></p>
+</li>
+<li><p>修改指定属性值</p>
+<p><code>dom.setAttribute(&quot;some-attribute&quot;, &quot;666&quot;)</code></p>
+</li>
+</ol>
+<h4 id="1-1-3-增"><a href="#1-1-3-增" class="headerlink" title="1.1.3. 增"></a>1.1.3. 增</h4><figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">getCurrentTimeStr</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="keyword">const</span> date = <span class="keyword">new</span> <span class="title class_">Date</span>();</span><br><span class="line">    <span class="keyword">const</span> hour = date.<span class="title function_">getHours</span>();</span><br><span class="line">    <span class="keyword">const</span> minutes = date.<span class="title function_">getMinutes</span>();</span><br><span class="line">    <span class="keyword">const</span> second = date.<span class="title function_">getSeconds</span>();</span><br><span class="line">    <span class="keyword">return</span> [hour, minutes, second].<span class="title function_">join</span>(<span class="string">&quot;:&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 创建元素</span></span><br><span class="line"><span class="keyword">let</span> newDom = <span class="variable language_">document</span>.<span class="title function_">createElement</span>(<span class="string">&quot;p&quot;</span>)</span><br><span class="line">newDom.<span class="property">textContent</span> = <span class="string">&quot;页面加载时间为&quot;</span> + <span class="title function_">getCurrentTimeStr</span>();</span><br><span class="line"><span class="comment">// 将新创建的结点添加到body的子节点列表的末尾处</span></span><br><span class="line"><span class="variable language_">document</span>.<span class="property">body</span>.<span class="title function_">appendChild</span>(newDom) <span class="comment">// or ParentNode.appendChild(newDom)</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="1-1-4-删"><a href="#1-1-4-删" class="headerlink" title="1.1.4. 删"></a>1.1.4. 删</h4><figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">let</span> liToRemove = <span class="variable language_">document</span>.<span class="title function_">getElementsByTagName</span>(<span class="string">&quot;li&quot;</span>)[<span class="number">0</span>];</span><br><span class="line">liToRemove.<span class="title function_">remove</span>();</span><br></pre></td></tr></table></figure>
+
+<h2 id="2-DOM事件"><a href="#2-DOM事件" class="headerlink" title="2. DOM事件"></a>2. DOM事件</h2><h3 id="2-1-什么是DOM事件"><a href="#2-1-什么是DOM事件" class="headerlink" title="2.1. 什么是DOM事件"></a>2.1. 什么是DOM事件</h3><ul>
+<li>Demo</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">let</span> liDom = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&quot;something&quot;</span>)</span><br><span class="line"><span class="comment">// DOM 0级</span></span><br><span class="line">liDom.<span class="property">onclick</span> = <span class="function">(<span class="params">event</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;exe!&#x27;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>页面上的DOM之间是嵌套的结构，如果给内层DOM绑定了事件监听函数，则外层的DOM也会相应触发点击事件</li>
+</ul>
+<h3 id="2-2-DOM事件传播"><a href="#2-2-DOM事件传播" class="headerlink" title="2.2. DOM事件传播"></a>2.2. DOM事件传播</h3><ul>
+<li>事件捕获阶段 –&gt; 目标事件阶段 –&gt; 事件冒泡阶段</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220714170409071.png" alt="image-20220714170409071"></p>
+<h3 id="2-2-addEventListener"><a href="#2-2-addEventListener" class="headerlink" title="2.2. addEventListener"></a>2.2. addEventListener</h3><p>DOM 2级</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">let</span> liDom = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&quot;something&quot;</span>)</span><br><span class="line">liDom.<span class="title function_">addEventListener</span>(<span class="string">&quot;click&quot;</span>, <span class="keyword">function</span>(<span class="params">event</span>)&#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;exe!(回调1)&#x27;</span>)</span><br><span class="line">&#125;); <span class="comment">// 其实还有第三个参数，once：是否只响应一次；capture：是否在捕获阶段触发（默认是false：即在冒泡阶段触发）</span></span><br><span class="line">liDom.<span class="title function_">addEventListener</span>(<span class="string">&quot;click&quot;</span>, <span class="keyword">function</span>(<span class="params">event</span>)&#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;exe!(回调2)&#x27;</span>)</span><br><span class="line">&#125;, &#123; <span class="attr">once</span>: <span class="literal">true</span> &#125;);</span><br><span class="line">liDom.<span class="title function_">addEventListener</span>(<span class="string">&quot;click&quot;</span>, <span class="keyword">function</span>(<span class="params">event</span>)&#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;exe!(回调3)&#x27;</span>)</span><br><span class="line">&#125;, &#123; <span class="attr">once</span>: <span class="literal">true</span> &#125;);</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>和直接onClick相比，可以给一个DOM绑定多个事件</li>
+</ul>
+<h2 id="3-BOM"><a href="#3-BOM" class="headerlink" title="3. BOM"></a>3. BOM</h2><p>Browser Object Model，控制浏览器的行为的接口</p>
+<h3 id="3-1-通过window访问"><a href="#3-1-通过window访问" class="headerlink" title="3.1. 通过window访问"></a>3.1. 通过window访问</h3><ul>
+<li>通过window可以访问浏览器提供的BOM对象<ul>
+<li>location</li>
+<li>navigator</li>
+<li>screen</li>
+<li>alert、prompt、confirm</li>
+<li>localStorage</li>
+<li>…</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="variable language_">window</span>.<span class="title function_">alert</span>(<span class="string">&quot;welcome!&quot;</span>) <span class="comment">// 提示框</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> res = <span class="variable language_">window</span>,<span class="title function_">prompt</span>(<span class="string">&quot;请输入...&quot;</span>, <span class="string">&quot;张三&quot;</span>) <span class="comment">// 输入提示框，用户可以输入内容</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> iinfo = <span class="variable language_">window</span>.<span class="property">navigator</span>.<span class="property">userAgent</span> <span class="comment">// 获取浏览器和系统信息</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> res = <span class="variable language_">window</span>.<span class="title function_">confirm</span>(<span class="string">&quot;是否跳转？&quot;</span>) <span class="comment">// 弹出确认框 </span></span><br><span class="line"><span class="keyword">if</span>(res) &#123;</span><br><span class="line">    <span class="variable language_">window</span>.<span class="property">location</span>.<span class="property">href</span> = <span class="string">&quot;http://www.baidu.com&quot;</span> <span class="comment">// 跳转到百度首页</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 可以省window</span></span><br><span class="line">location.<span class="property">href</span> <span class="comment">// 完整url</span></span><br><span class="line">location.<span class="property">protocol</span> <span class="comment">// 协议头</span></span><br><span class="line">location.<span class="property">host</span> <span class="comment">// 域名</span></span><br><span class="line">location.<span class="property">pathname</span> <span class="comment">// 路径</span></span><br><span class="line">location.<span class="property">search</span> <span class="comment">// 参数</span></span><br><span class="line">location.<span class="property">hash</span> <span class="comment">// 哈希值</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="4-AJAX"><a href="#4-AJAX" class="headerlink" title="4. AJAX"></a>4. AJAX</h2><p>AJAX是异步的Javascript和XML，可以请求服务端数据，并将数据更新到页面上，且是异步的</p>
+<h3 id="4-1-XMLHttpRequest"><a href="#4-1-XMLHttpRequest" class="headerlink" title="4.1. XMLHttpRequest"></a>4.1. XMLHttpRequest</h3><p>使用XMLHttpRequest对象与服务器通信</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">let</span> httpRequest = <span class="keyword">new</span> <span class="title class_">XMLHttpRequest</span>()</span><br><span class="line"><span class="keyword">if</span>(!httpRequest) &#123;</span><br><span class="line">    <span class="title function_">alert</span>(<span class="string">&quot;浏览器不支持XMLHttpRequest，如IE！&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">else</span> &#123;</span><br><span class="line">    httpRequest.<span class="property">onreadystatechange</span> = <span class="keyword">function</span> (<span class="params"></span>) &#123; <span class="comment">// 服务器响应时触发此回调函数</span></span><br><span class="line">        <span class="keyword">if</span> (httpRequest.<span class="property">readyState</span> === httpRequest.<span class="property">DONE</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (httpRequest.<span class="property">status</span> === <span class="number">200</span>)&#123;</span><br><span class="line">                <span class="variable language_">console</span>.<span class="title function_">log</span>(httpRequest.<span class="property">responseText</span>)</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;error!&#x27;</span>)</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;readyState change: &quot;</span> + httpRequest.<span class="property">readyState</span>)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    httpRequest.<span class="title function_">open</span>(</span><br><span class="line">        <span class="string">&#x27;GET&#x27;</span>,</span><br><span class="line">        <span class="string">&#x27;url&#x27;</span></span><br><span class="line">    )</span><br><span class="line">    httpRequest.<span class="title function_">send</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-Fetch"><a href="#4-2-Fetch" class="headerlink" title="4.2. Fetch"></a>4.2. Fetch</h3><figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="title function_">fetch</span>(<span class="string">&#x27;url&#x27;</span>).<span class="title function_">then</span>(<span class="keyword">function</span> (<span class="params">response</span>) &#123;</span><br><span class="line">    <span class="keyword">return</span> response.<span class="title function_">json</span>();</span><br><span class="line">&#125;)</span><br><span class="line">.<span class="title function_">then</span>(<span class="keyword">function</span> (<span class="params">myJson</span>) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(myJson)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+
+<h2 id="5-架构模式"><a href="#5-架构模式" class="headerlink" title="5. 架构模式"></a>5. 架构模式</h2><p>从一个例子开始…</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220714173054756.png" alt="image-20220714173054756"></p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;save&#x27;</span>).<span class="title function_">addEventListener</span>(<span class="string">&#x27;click&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> name = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;name&#x27;</span>).<span class="property">value</span>;</span><br><span class="line">    <span class="keyword">let</span> age = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;age&#x27;</span>).<span class="property">value</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">let</span> listHtml = <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;tr&gt;</span></span><br><span class="line"><span class="string">    	&lt;td&gt;<span class="subst">$&#123;name&#125;</span>&lt;/td&gt;</span></span><br><span class="line"><span class="string">    	&lt;td&gt;<span class="subst">$&#123;name&#125;</span>&lt;/td&gt;</span></span><br><span class="line"><span class="string">    &lt;/tr&gt;`</span></span><br><span class="line">    </span><br><span class="line">    <span class="keyword">let</span> tableElement = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;list&#x27;</span>).<span class="property">innerHTML</span> += listHtml</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"><span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;upload&#x27;</span>).<span class="title function_">addEventListener</span>(<span class="string">&#x27;click&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> listElement = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;list&#x27;</span>);</span><br><span class="line">    <span class="keyword">let</span> lineElement = <span class="variable language_">document</span>.<span class="title function_">querySelectorAll</span>(<span class="string">&#x27;tr&#x27;</span>);</span><br><span class="line">    <span class="keyword">let</span> result = [];</span><br><span class="line">    lineElement.<span class="title function_">forEach</span>(<span class="function"><span class="params">item</span> =&gt;</span> &#123;</span><br><span class="line">        <span class="keyword">let</span> tds = item.<span class="title function_">querySelectorAll</span>(<span class="string">&#x27;td&#x27;</span>);</span><br><span class="line">        <span class="keyword">let</span> name = tds[<span class="number">0</span>].<span class="property">innerText</span>;</span><br><span class="line">        <span class="keyword">let</span> age = tds[<span class="number">1</span>].<span class="property">innerText</span>;</span><br><span class="line">        result.<span class="title function_">push</span>(&#123;name, age&#125;);</span><br><span class="line">    &#125;)</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(result)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220714173909347.png" alt="image-20220714173909347"></p>
+<p>修改：维护一个全局result，然后每次增加时添加数据到result，最后导出的时候就不需要从dom中取，直接取result即可</p>
+<h2 id="6-MVC"><a href="#6-MVC" class="headerlink" title="6. MVC"></a>6. MVC</h2><h3 id="6-1-架构"><a href="#6-1-架构" class="headerlink" title="6.1. 架构"></a>6.1. 架构</h3><ul>
+<li>Model ：比如前文中提到的result全局数组</li>
+<li>View</li>
+<li>Controller</li>
+</ul>
+<h3 id="6-2-基于MVC的代码重构"><a href="#6-2-基于MVC的代码重构" class="headerlink" title="6.2. 基于MVC的代码重构"></a>6.2. 基于MVC的代码重构</h3><figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">let</span> model = []</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> controller = &#123;</span><br><span class="line">    <span class="title function_">add</span>(<span class="params"></span>) &#123;</span><br><span class="line">        <span class="keyword">let</span> name = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;name&#x27;</span>).<span class="property">value</span>;</span><br><span class="line">    	<span class="keyword">let</span> age = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;age&#x27;</span>).<span class="property">value</span>;</span><br><span class="line">        model.<span class="title function_">push</span>(&#123; name, age &#125;);</span><br><span class="line">        view.<span class="title function_">update</span>();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="title function_">upload</span>(<span class="params"></span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(model)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> view = &#123;</span><br><span class="line">    <span class="title function_">update</span>(<span class="params"></span>) &#123;</span><br><span class="line">        <span class="keyword">let</span> data = model;</span><br><span class="line">        <span class="keyword">let</span> listHtml = <span class="string">&#x27;&#x27;</span>;</span><br><span class="line">        data.<span class="title function_">forEach</span>(<span class="function">(<span class="params">&#123;name, age&#125;</span>) =&gt;</span> &#123;</span><br><span class="line">            listHtml += <span class="string">`</span></span><br><span class="line"><span class="string">            &lt;tr&gt;</span></span><br><span class="line"><span class="string">                &lt;td&gt;<span class="subst">$&#123;name&#125;</span>&lt;/td&gt;</span></span><br><span class="line"><span class="string">                &lt;td&gt;<span class="subst">$&#123;name&#125;</span>&lt;/td&gt;</span></span><br><span class="line"><span class="string">            &lt;/tr&gt;</span></span><br><span class="line"><span class="string">            `</span></span><br><span class="line">        &#125;)</span><br><span class="line">        <span class="keyword">let</span> tableElement = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;list&#x27;</span>).<span class="property">innerHTML</span> = listHtml</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;save&#x27;</span>).<span class="title function_">addEventListener</span>(<span class="string">&#x27;click&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">    controller.<span class="title function_">add</span>();</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"><span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;upload&#x27;</span>).<span class="title function_">addEventListener</span>(<span class="string">&#x27;click&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">    controller.<span class="title function_">upload</span>();</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220714174712763.png" alt="image-20220714174712763"></p>
+<ul>
+<li><p>再优化：单一职责</p>
+</li>
+<li><p>如何监听model变化？</p>
+<ul>
+<li><p>观察者模式</p>
+<ul>
+<li><code>addEventListener</code>就是一个观察者模式</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line">target.<span class="title function_">addEventListener</span>(<span class="string">&#x27;click&#x27;</span>, listener);</span><br><span class="line">target.<span class="title function_">dispatchEvent</span>(<span class="string">&#x27;click&#x27;</span>);</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>现在我们自己引入一个类似的事件监听器</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">let</span> event = <span class="keyword">new</span> <span class="title class_">EventEmitter</span>();</span><br><span class="line">event.<span class="title function_">on</span>(<span class="string">&#x27;addItem&#x27;</span>, showList); <span class="comment">// 注册一个addItem方法，并传showList方法</span></span><br><span class="line">event.<span class="title function_">emit</span>(<span class="string">&#x27;addItem&#x27;</span>)；</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>用观察者模式改写model层</p>
+</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">EventEmitter</span> &#123;</span><br><span class="line">    <span class="title function_">constructor</span>(<span class="params"></span>) &#123;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">_events</span> = &#123;&#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="title function_">on</span>(<span class="params">evt, listener</span>) &#123;</span><br><span class="line">        (<span class="variable language_">this</span>.<span class="property">_event</span>[evt] || (<span class="variable language_">this</span>.<span class="property">_events</span>[evt] = [])).<span class="title function_">push</span>(listen)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> event = <span class="title class_">EventEmmitter</span>();</span><br><span class="line">event.<span class="title function_">on</span>(<span class="string">&#x27;add&#x27;</span>, view.<span class="property">update</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> model = &#123;</span><br><span class="line">    _value = [],</span><br><span class="line">	<span class="title function_">push</span>(<span class="params">value</span>) &#123;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">_value</span>.<span class="title function_">push</span>(value);</span><br><span class="line">        event.<span class="title function_">emit</span>(<span class="string">&#x27;add&#x27;</span>); <span class="comment">// 每次push之后触发add方法（即view.update方法）</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="title function_">get</span>(<span class="params"></span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="variable language_">this</span>.<span class="property">_value</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> controller = &#123;</span><br><span class="line">    <span class="title function_">add</span>(<span class="params"></span>) &#123;</span><br><span class="line">        <span class="keyword">let</span> name = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;name&#x27;</span>).<span class="property">value</span>;</span><br><span class="line">    	<span class="keyword">let</span> age = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;age&#x27;</span>).<span class="property">value</span>;</span><br><span class="line">        model.<span class="title function_">push</span>(&#123; name, age &#125;);</span><br><span class="line">        <span class="comment">// view.update();</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="title function_">upload</span>(<span class="params"></span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(model.<span class="title function_">get</span>())</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> view = &#123;</span><br><span class="line">    <span class="title function_">update</span>(<span class="params"></span>) &#123;</span><br><span class="line">        <span class="keyword">let</span> data = model.<span class="title function_">get</span>();</span><br><span class="line">        <span class="keyword">let</span> listHtml = <span class="string">&#x27;&#x27;</span>;</span><br><span class="line">        data.<span class="title function_">forEach</span>(<span class="function">(<span class="params">&#123;name, age&#125;</span>) =&gt;</span> &#123;</span><br><span class="line">            listHtml += <span class="string">`</span></span><br><span class="line"><span class="string">            &lt;tr&gt;</span></span><br><span class="line"><span class="string">                &lt;td&gt;<span class="subst">$&#123;name&#125;</span>&lt;/td&gt;</span></span><br><span class="line"><span class="string">                &lt;td&gt;<span class="subst">$&#123;name&#125;</span>&lt;/td&gt;</span></span><br><span class="line"><span class="string">            &lt;/tr&gt;</span></span><br><span class="line"><span class="string">            `</span></span><br><span class="line">        &#125;)</span><br><span class="line">        <span class="keyword">let</span> tableElement = <span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;list&#x27;</span>).<span class="property">innerHTML</span> = listHtml</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220714175834918.png" alt="image-20220714175834918"></p>
+<h2 id="7-MVVM"><a href="#7-MVVM" class="headerlink" title="7. MVVM"></a>7. MVVM</h2><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220714175940359.png" alt="image-20220714175940359"></p>
+<p>修改ViewModel可以同步更新到View上</p>
+<p>MVC：如何更新Model …&amp; 能够观察到Model更新的方法</p>
+<p>MVVM：包含数据驱动视图更新的机制 &amp; 渲染视图的模板引擎</p>
+<h3 id="7-1-如何绑定视图和数据的关系"><a href="#7-1-如何绑定视图和数据的关系" class="headerlink" title="7.1. 如何绑定视图和数据的关系"></a>7.1. 如何绑定视图和数据的关系</h3><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220714182522507.png" alt="image-20220714182522507"></p>
+<h3 id="7-2-Vue实现MVVM的思路"><a href="#7-2-Vue实现MVVM的思路" class="headerlink" title="7.2. Vue实现MVVM的思路"></a>7.2. Vue实现MVVM的思路</h3><h4 id="7-2-1-数据劫持"><a href="#7-2-1-数据劫持" class="headerlink" title="7.2.1. 数据劫持"></a>7.2.1. 数据劫持</h4><blockquote>
+<p>数据劫持 为什么要数据劫持？带着这个问题我们先来看下如何实现数据劫持，在vue2的源码中有个名为defineReactive$$1的方法，该方法就是用来实现数据劫持的，但该方法也只是个壳子，最终实现数据劫持的还是靠的<strong>js原生的Object.defineProperty方法</strong>，这也是vue2死活不支持ie8的原因之一。</p>
+</blockquote>
+<p>Object.defineProperty方法接受三个参数：</p>
+<ul>
+<li>第一个参数是被劫持的对象</li>
+<li>第二个参数是被劫持的对象中的属性（key）</li>
+<li>第三个参数是一个配置项对象（包括：value、enumerable、configurable、get和set等几个属性），如下：</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="title class_">Object</span>.<span class="title function_">defineProperty</span>(obj,key,&#123;</span><br><span class="line">    <span class="attr">enumerable</span>: <span class="literal">true</span>,</span><br><span class="line">    <span class="attr">configurable</span>: <span class="literal">true</span>,</span><br><span class="line">    <span class="title function_">get</span>(<span class="params"></span>)&#123;</span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="title function_">set</span>(<span class="params"></span>)&#123;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+
+<p>我们在做数据劫持时主要用到的就是get和set两个属性。</p>
+<p>通过该方法，被劫持的对象属性，只要在外界获取或者修改属性值都会触发get或set方法，这样我们就可以在get或set中对属性做一些额外对操作。</p>
+<p>了解了数据劫持的实现，也就知道了我们为什么要做数据劫持。是因为我们可以通过数据劫持对数据做一些额外对操作从而实现响应式数据。下面我们以vue的data为例实现一个简单的数据劫持。</p>
+<figure class="highlight js"><table><tr><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">observe</span>(<span class="params">data</span>)&#123;</span><br><span class="line">    <span class="comment">// data必须是一个对象</span></span><br><span class="line">    <span class="comment">// &#123;&#125;.toString.call(): 判断类型</span></span><br><span class="line">    <span class="keyword">if</span>( (&#123;&#125;).<span class="property">toString</span>.<span class="title function_">call</span>(data) !== <span class="string">&#x27;[object Object]&#x27;</span> ) <span class="keyword">return</span>;</span><br><span class="line">    <span class="comment">//获取data中所有的属性</span></span><br><span class="line">    <span class="comment">// ES5 引入了Object.keys方法，成员是参数对象自身的（不含继承的）所有可遍历（ enumerable ）属性的键名。</span></span><br><span class="line">    <span class="keyword">const</span> keys = <span class="title class_">Object</span>.<span class="title function_">keys</span>(data); </span><br><span class="line">    <span class="comment">//循环遍历keys为data中的每个属性做数据劫持</span></span><br><span class="line">    keys.<span class="title function_">foreach</span>(<span class="function"><span class="params">key</span>=&gt;</span>&#123;</span><br><span class="line">        <span class="title function_">defineReactive$$1</span>(data, key, data[key]);</span><br><span class="line">    &#125;)    </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">defineReactive$$1</span>(<span class="params">obj, key, val</span>)&#123;</span><br><span class="line">    <span class="title class_">Object</span>.<span class="title function_">defineProperty</span>(obj, key, &#123;</span><br><span class="line">        <span class="title function_">get</span>(<span class="params"></span>)&#123;</span><br><span class="line">            <span class="keyword">return</span> val;</span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="title function_">set</span>(<span class="params">newV</span>)&#123;</span><br><span class="line">            <span class="keyword">if</span>(newV !== val)&#123;</span><br><span class="line">                val = newV;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="7-2-2-模板编译"><a href="#7-2-2-模板编译" class="headerlink" title="7.2.2. 模板编译"></a>7.2.2. 模板编译</h4><blockquote>
+<p>为什么要模板编译？ 我们知道在vue中是通过一些指令或者小胡子语法来实现数据绑定的，而浏览器并不认识这些指令或者小胡子语法，因此在页面加载后需要将这些语法转换成真正的数据呈现给用户。</p>
+</blockquote>
+<p>下面我们以input元素和v-model指令为例来实现一个简单的模板编译。 本案例中实现模板编译的流程：</p>
+<blockquote>
+<ul>
+<li>遍历#app下所有的节点，然后根据节点的类型做相应的操作<ul>
+<li>如果是元素节点，获取该节点中所有的属性（attributes）并遍历看是否有v-model指令<ul>
+<li>如果有v-model指令，则根据该指令绑定的属性名（data中的属性名）获取到对应到值，并赋值给节点的value属性</li>
+</ul>
+</li>
+<li>如果是文本节点，则看该文本内容中是否包含小胡子语法<ul>
+<li>如果有小胡子语法，同样需要解析出小胡子中绑定的属性名（data中的属性名）并获取到对应到值替换该文本内容</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>遍历完每个节点后再将该节点作为子节点添加到html到文档碎片中</li>
+<li>最后再将整个文档碎片添加到dom中 需要说明到是：在vue中实现是借助虚拟dom实现的，而这里为了简单就借助文档碎片来模拟虚拟dom实现，另外为什么一定要用文档碎片，不能直接遍历节点吗？直接遍历也是可以的但是这样一来由于不停的修改节点势必会造成大量的性能消耗，而通过文档碎片在所有节点遍历完成后只需要一次消耗，这样就大大降低了回流重汇带来的性能损耗。</li>
+</ul>
+</blockquote>
+<figure class="highlight js"><table><tr><td class="code"><pre><span class="line"><span class="keyword">function</span> <span class="title function_">nodeTofragment</span>(<span class="params">el, vm</span>)&#123;</span><br><span class="line">    <span class="keyword">let</span> fragment = <span class="variable language_">document</span>.<span class="title function_">createDocumentFragment</span>();</span><br><span class="line">    <span class="keyword">let</span> child;</span><br><span class="line">    <span class="keyword">while</span>(child = el.<span class="property">firstChild</span>)&#123;</span><br><span class="line">        <span class="title function_">compile</span>(child, vm);<span class="comment">//模板编译</span></span><br><span class="line">        fragment.<span class="title function_">appendChild</span>(child);<span class="comment">//将节点添加到文档碎片中</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">compile</span>(<span class="params">node, vm</span>)&#123;</span><br><span class="line">    <span class="comment">// 每个节点都有个节点类型属性（nodeType）对应的值分别是：1元素、2文本、8注释和9根节点</span></span><br><span class="line">    <span class="keyword">if</span>(node.<span class="property">nodeType</span> === <span class="number">1</span>)&#123;<span class="comment">//  如果是元素节点</span></span><br><span class="line">        <span class="comment">// 遍历所有的属性，看是否有v-model指令</span></span><br><span class="line">        [...node.<span class="property">attributes</span>].<span class="title function_">forEach</span>(<span class="function"><span class="params">item</span>=&gt;</span>&#123;</span><br><span class="line">            <span class="keyword">if</span>(<span class="regexp">/^v-/</span>.<span class="title function_">test</span>(item.<span class="property">nodeName</span>))&#123;<span class="comment">//nodeName就是属性名，如：class、type、v-model等</span></span><br><span class="line">                node.<span class="property">value</span> = vm.<span class="property">$data</span>[item.<span class="property">nodeValue</span>]; <span class="comment">//nodeValue就是属性名中对应的值，如v-model=&quot;name&quot;中的name</span></span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// 元素节点还可能有很多子节点或孙子节点等，因此还需递归处理</span></span><br><span class="line">        [...node.<span class="property">childNodes</span>].<span class="title function_">forEach</span>(<span class="function"><span class="params">item</span>=&gt;</span>&#123;</span><br><span class="line">            <span class="title function_">compile</span>(item, vm);</span><br><span class="line">        &#125;);</span><br><span class="line">    &#125;<span class="keyword">else</span> <span class="keyword">if</span>(node.<span class="property">nodeType</span> === <span class="number">3</span>)&#123; <span class="comment">// 如果是文本节点</span></span><br><span class="line">        <span class="comment">// 检测该文本中是否包含小胡子语法</span></span><br><span class="line">        <span class="keyword">if</span>(<span class="regexp">/\&#123;\&#123;\w+\&#125;\&#125;/</span>.<span class="title function_">test</span>(node.<span class="property">textContent</span>))&#123;</span><br><span class="line">            <span class="comment">// 将小胡子替换为真正的数据</span></span><br><span class="line">            node.<span class="property">textContent</span> = node.<span class="property">textContent</span>.<span class="title function_">replace</span>(<span class="regexp">/\&#123;\&#123;(\w+)\&#125;\&#125;/</span>, <span class="keyword">function</span>(<span class="params">a,b</span>)&#123;</span><br><span class="line">                <span class="comment">// 参数a是匹配到到大的正则内容</span></span><br><span class="line">                <span class="comment">// 参数b是小分组中匹配到到内容 所以b就对应的data中定义的属性</span></span><br><span class="line">                <span class="keyword">return</span> vm.<span class="property">$data</span>[b];</span><br><span class="line">            &#125;)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="7-2-3-双向绑定"><a href="#7-2-3-双向绑定" class="headerlink" title="7.2.3. 双向绑定"></a>7.2.3. 双向绑定</h4><p>vue主要是利用数据劫持加发布订阅模式来实现数据的双向绑定的。</p>
+<p>在前面数据劫持的时候我们提到，数据劫持的目的就是为了在获取数据或给数据赋值之前对数据做一些额外的操作，那么这些额外的操作其实就是利用发布订阅模式对数据属性进行监控，比如说data中的name属性，首先需要知道这个name属性都在哪里用到了，以便后面如果name值发生改变时及时通知用到name的地方同步更新，这个在vue中叫做依赖收集。怎么才能知道name属性都在哪里用到了呢，这个时候数据劫持就派上用场了，前面说过只要外界对name进行访问都会触发Object.defineProperty中的get函数，那么我们就可以利用这个特点在get函数中对name属性进行监听收集。大概实现思路如下：</p>
+<blockquote>
+<ul>
+<li>首先我们需要定义一个Dep类，用于对属性进行依赖收集和通知用到属性到地方进行同步更新</li>
+<li>然后再定义一个Watcher类，用于对属性进行监听，并实现属性值的同步更新</li>
+<li>在模板编译的时候，通过watcher来监听属性</li>
+<li>在数据劫持的get函数中进行依赖收集</li>
+<li>在数据劫持的set函数中通知各个watcher进行数据更新</li>
+</ul>
+</blockquote>
+<figure class="highlight js"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Dep</span>&#123;</span><br><span class="line">    <span class="title function_">constructor</span>(<span class="params"></span>)&#123;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">subs</span> = [];<span class="comment">//事件池 存储watcher实例对象</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="title function_">addSub</span>(<span class="params">sub</span>)&#123;</span><br><span class="line">        <span class="comment">//sub就是watcher的实例</span></span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">subs</span>.<span class="title function_">push</span>(sub);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="title function_">notify</span>(<span class="params"></span>)&#123;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">subs</span>.<span class="title function_">forEach</span>(<span class="function"><span class="params">item</span>=&gt;</span>&#123;</span><br><span class="line">            item.<span class="title function_">update</span>();<span class="comment">//调用watcher的update</span></span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Watcher</span>&#123;</span><br><span class="line">    <span class="title function_">constructor</span>(<span class="params">node, key, vm</span>)&#123;</span><br><span class="line">        <span class="title class_">Dep</span>.<span class="property">target</span> = <span class="variable language_">this</span>;<span class="comment">//用于标识只用通过Watcher监听过的属性才会进行依赖收集</span></span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">node</span> = node;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">key</span> = key;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">vm</span> = vm;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="title function_">getValue</span>();</span><br><span class="line">        <span class="title class_">Dep</span>.<span class="property">target</span> = <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="title function_">update</span>(<span class="params"></span>)&#123;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="title function_">getValue</span>();<span class="comment">//首先获取下最新值</span></span><br><span class="line">        <span class="keyword">if</span>(<span class="variable language_">this</span>.<span class="property">node</span>.<span class="property">nodeType</span> === <span class="number">1</span>)&#123;</span><br><span class="line">            <span class="variable language_">this</span>.<span class="property">node</span>.<span class="property">value</span> = <span class="variable language_">this</span>.<span class="property">value</span>;</span><br><span class="line">        &#125;<span class="keyword">else</span> <span class="keyword">if</span>(<span class="variable language_">this</span>.<span class="property">node</span>.<span class="property">nodeType</span> === <span class="number">3</span>)&#123;</span><br><span class="line">            <span class="variable language_">this</span>.<span class="property">node</span>.<span class="property">textContent</span> = <span class="variable language_">this</span>.<span class="property">value</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="title function_">getValue</span>(<span class="params"></span>)&#123;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">value</span> = <span class="variable language_">this</span>.<span class="property">vm</span>.<span class="property">$data</span>[<span class="variable language_">this</span>.<span class="property">key</span>];</span><br><span class="line">    &#125;    </span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h3 id="7-3-完整代码"><a href="#7-3-完整代码" class="headerlink" title="7.3.  完整代码"></a>7.3.  完整代码</h3><figure class="highlight js"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 双向绑定</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Dep</span> &#123;</span><br><span class="line">  <span class="title function_">constructor</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="variable language_">this</span>.<span class="property">subs</span> = []</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="title function_">addSubs</span>(<span class="params">sub</span>) &#123;</span><br><span class="line">    <span class="variable language_">this</span>.<span class="property">subs</span>.<span class="title function_">push</span>(sub)</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="title function_">notify</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="variable language_">this</span>.<span class="property">subs</span>.<span class="title function_">forEach</span>(<span class="function"><span class="params">item</span> =&gt;</span> &#123;</span><br><span class="line">      item.<span class="title function_">update</span>();</span><br><span class="line">    &#125;)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Watcher</span> &#123;</span><br><span class="line">  <span class="title function_">constructor</span>(<span class="params">node, key, vm</span>) &#123;</span><br><span class="line">    <span class="title class_">Dep</span>.<span class="property">target</span> = <span class="variable language_">this</span>;</span><br><span class="line">    <span class="variable language_">this</span>.<span class="property">node</span> = node;</span><br><span class="line">    <span class="variable language_">this</span>.<span class="property">key</span> = key;</span><br><span class="line">    <span class="variable language_">this</span>.<span class="property">vm</span> = vm</span><br><span class="line">    <span class="variable language_">this</span>.<span class="title function_">getValue</span>();</span><br><span class="line">    <span class="title class_">Dep</span>.<span class="property">target</span> = <span class="literal">null</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="title function_">update</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="variable language_">this</span>.<span class="title function_">getValue</span>();</span><br><span class="line">    <span class="keyword">if</span> (<span class="variable language_">this</span>.<span class="property">node</span>.<span class="property">nodeType</span> === <span class="number">1</span>) &#123;</span><br><span class="line">      <span class="variable language_">this</span>.<span class="property">node</span>.<span class="property">value</span> = <span class="variable language_">this</span>.<span class="property">value</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="variable language_">this</span>.<span class="property">node</span>.<span class="property">nodeType</span> === <span class="number">3</span>) &#123;</span><br><span class="line">      <span class="variable language_">this</span>.<span class="property">node</span>.<span class="property">textContent</span> = <span class="variable language_">this</span>.<span class="property">value</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="title function_">getValue</span>(<span class="params"></span>) &#123;</span><br><span class="line">    <span class="variable language_">this</span>.<span class="property">value</span> = <span class="variable language_">this</span>.<span class="property">vm</span>.<span class="property">$data</span>[<span class="variable language_">this</span>.<span class="property">key</span>];</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">Vue</span>(<span class="params">options</span>) &#123;</span><br><span class="line">  <span class="variable language_">this</span>.<span class="property">$data</span> = options.<span class="property">data</span>;</span><br><span class="line">  <span class="variable language_">this</span>.<span class="property">$el</span> = <span class="variable language_">document</span>.<span class="title function_">querySelector</span>(options.<span class="property">el</span>);</span><br><span class="line"></span><br><span class="line">  <span class="title function_">observe</span>(<span class="variable language_">this</span>.<span class="property">$data</span>)</span><br><span class="line">  <span class="title function_">nodeTofragment</span>(<span class="variable language_">this</span>.<span class="property">$el</span>, <span class="variable language_">this</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> vm = <span class="keyword">new</span> <span class="title class_">Vue</span>(&#123;</span><br><span class="line">  <span class="attr">data</span>: &#123; <span class="attr">name</span>: <span class="string">&#x27;西瓜watermelon&#x27;</span> &#125;,</span><br><span class="line">  <span class="attr">el</span>: <span class="string">&#x27;#app&#x27;</span></span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">// 数据劫持</span></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">observe</span>(<span class="params">data</span>) &#123;</span><br><span class="line">  <span class="keyword">if</span> ((&#123;&#125;).<span class="property">toString</span>.<span class="title function_">call</span>(data) !== <span class="string">&#x27;[object Object]&#x27;</span>) <span class="keyword">return</span>;</span><br><span class="line">  <span class="keyword">const</span> keys = <span class="title class_">Object</span>.<span class="title function_">keys</span>(data);</span><br><span class="line">  keys.<span class="title function_">forEach</span>(<span class="function"><span class="params">key</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="title function_">defineReactive$$1</span>(data, key, data[key]);</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">function</span> <span class="title function_">defineReactive$$1</span>(<span class="params">obj, key, val</span>) &#123;</span><br><span class="line">  <span class="keyword">let</span> dep = <span class="keyword">new</span> <span class="title class_">Dep</span>();</span><br><span class="line">  <span class="title class_">Object</span>.<span class="title function_">defineProperty</span>(obj, key, &#123;</span><br><span class="line">    <span class="title function_">get</span>(<span class="params"></span>) &#123;</span><br><span class="line">      <span class="keyword">if</span> (<span class="title class_">Dep</span>.<span class="property">target</span>) &#123;</span><br><span class="line">        dep.<span class="title function_">addSubs</span>(<span class="title class_">Dep</span>.<span class="property">target</span>);</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">return</span> val</span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="title function_">set</span>(<span class="params">newV</span>) &#123;</span><br><span class="line">      <span class="keyword">if</span> (newV !== val) &#123;</span><br><span class="line">        val = newV</span><br><span class="line">        dep.<span class="title function_">notify</span>();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 模板编译</span></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">nodeTofragment</span>(<span class="params">el, vm</span>) &#123;</span><br><span class="line">  <span class="keyword">let</span> fragment = <span class="variable language_">document</span>.<span class="title function_">createDocumentFragment</span>();</span><br><span class="line">  <span class="keyword">let</span> child;</span><br><span class="line">  <span class="keyword">while</span> (child = el.<span class="property">firstChild</span>) &#123;</span><br><span class="line">    <span class="title function_">compiler</span>(child, vm);</span><br><span class="line">    fragment.<span class="title function_">appendChild</span>(child);</span><br><span class="line">  &#125;</span><br><span class="line">  el.<span class="title function_">appendChild</span>(fragment)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">compiler</span>(<span class="params">node, vm</span>) &#123;</span><br><span class="line">  <span class="keyword">if</span> (node.<span class="property">nodeType</span> === <span class="number">1</span>) &#123;<span class="comment">//元素节点</span></span><br><span class="line">    [...node.<span class="property">attributes</span>].<span class="title function_">forEach</span>(<span class="function"><span class="params">item</span> =&gt;</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (<span class="regexp">/^v-/</span>.<span class="title function_">test</span>(item.<span class="property">nodeName</span>)) &#123;</span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">Watcher</span>(node, item.<span class="property">nodeValue</span>, vm)</span><br><span class="line">        node.<span class="property">value</span> = vm.<span class="property">$data</span>[item.<span class="property">nodeValue</span>];</span><br><span class="line">        node.<span class="title function_">addEventListener</span>(<span class="string">&#x27;input&#x27;</span>, <span class="function">() =&gt;</span> &#123;</span><br><span class="line">          vm.<span class="property">$data</span>[item.<span class="property">nodeValue</span>] = node.<span class="property">value</span>;</span><br><span class="line">        &#125;);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    [...node.<span class="property">childNodes</span>].<span class="title function_">forEach</span>(<span class="function"><span class="params">item</span> =&gt;</span> &#123;</span><br><span class="line">      <span class="title function_">compiler</span>(item, vm);</span><br><span class="line">    &#125;)</span><br><span class="line"></span><br><span class="line">  &#125; <span class="keyword">else</span> <span class="keyword">if</span> (node.<span class="property">nodeType</span> === <span class="number">3</span>) &#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="regexp">/\&#123;\&#123;\w+\&#125;\&#125;/</span>.<span class="title function_">test</span>(node.<span class="property">textContent</span>)) &#123;</span><br><span class="line"></span><br><span class="line">      node.<span class="property">textContent</span> = node.<span class="property">textContent</span>.<span class="title function_">replace</span>(<span class="regexp">/\&#123;\&#123;(\w+)\&#125;\&#125;/</span>, <span class="keyword">function</span> (<span class="params">a, b</span>) &#123;</span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">Watcher</span>(node, b, vm)</span><br><span class="line">        <span class="keyword">return</span> vm.<span class="property">$data</span>[b]</span><br><span class="line">      &#125;)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight html"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;!DOCTYPE <span class="keyword">html</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">html</span> <span class="attr">lang</span>=<span class="string">&quot;en&quot;</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">head</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">meta</span> <span class="attr">charset</span>=<span class="string">&quot;UTF-8&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">meta</span> <span class="attr">http-equiv</span>=<span class="string">&quot;X-UA-Compatible&quot;</span> <span class="attr">content</span>=<span class="string">&quot;IE=edge&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">meta</span> <span class="attr">name</span>=<span class="string">&quot;viewport&quot;</span> <span class="attr">content</span>=<span class="string">&quot;width=device-width, initial-scale=1.0&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">title</span>&gt;</span>我自己个的vue - mvvm<span class="tag">&lt;/<span class="name">title</span>&gt;</span></span><br><span class="line">  <span class="comment">&lt;!-- &lt;script src=&quot;https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js&quot;&gt;&lt;/script&gt; --&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">head</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">body</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">div</span> <span class="attr">id</span>=<span class="string">&quot;app&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">input</span> <span class="attr">type</span>=<span class="string">&quot;text&quot;</span> <span class="attr">v-model</span>=<span class="string">&quot;name&quot;</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">h2</span>&gt;</span>&#123;&#123;name&#125;&#125;<span class="tag">&lt;/<span class="name">h2</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line"> <span class="tag">&lt;/<span class="name">body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">html</span>&gt;</span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="8-设计模式"><a href="#8-设计模式" class="headerlink" title="8. 设计模式"></a>8. 设计模式</h2><h3 id="8-1-观察者模式"><a href="#8-1-观察者模式" class="headerlink" title="8.1. 观察者模式"></a>8.1. 观察者模式</h3><p>当对象之间存在一对多的依赖关系时，其中一个对象的状态发生改变，所有依赖它的对象都会收到通知，这就是观察者模式。</p>
+<p>在观察者模式中，只有两种主体：目标对象 (<code>Object</code>) 和 观察者 (<code>Observer</code>)。宗门任务大殿就是目标对象，弟子们就是观察者。</p>
+<ul>
+<li>目标对象 <code>Subject</code>：<ul>
+<li>维护观察者列表 <code>observerList</code> ———— 维护拥有订阅权限的弟子列表</li>
+<li>定义添加观察者的方法 ———— 提供弟子购买订阅权限的功能</li>
+<li>当自身发生变化后，通过调用自己的 <code>notify</code> 方法依次通知每个观察者执行 <code>update</code> 方法 ———— 发布对应任务后通知有订阅权限的弟子</li>
+</ul>
+</li>
+<li>观察者 <code>Observer</code> 需要实现 <code>update</code> 方法，供目标对象调用。<code>update</code>方法中可以执行自定义的业务逻辑 ———— 弟子们需要定义接收任务通知后的方法，例如去抢任务或任务不适合，继续等待下一个任务</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220715000730818.png" alt="image-20220715000730818"></p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Observer</span> &#123;</span><br><span class="line">    <span class="title function_">constructor</span>(<span class="params">name</span>) &#123;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">name</span> = name;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="title function_">update</span>(<span class="params">&#123;taskType, taskInfo&#125;</span>) &#123;</span><br><span class="line">        <span class="comment">// 假设任务分为日常route和战斗war</span></span><br><span class="line">        <span class="keyword">if</span> (taskType === <span class="string">&quot;route&quot;</span>) &#123;</span><br><span class="line">            <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`<span class="subst">$&#123;<span class="variable language_">this</span>.name&#125;</span>不需要日常任务`</span>);</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="title function_">goToTaskHome</span>(taskInfo);</span><br><span class="line">        </span><br><span class="line">    &#125;</span><br><span class="line">    <span class="title function_">goToTaskHome</span>(<span class="params">info</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">`<span class="subst">$&#123;<span class="variable language_">this</span>.name&#125;</span>去任务大殿抢<span class="subst">$&#123;info&#125;</span>任务`</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Subject</span> &#123;</span><br><span class="line">    <span class="title function_">constructor</span>(<span class="params"></span>) &#123;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">observerList</span> = []</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="title function_">addObserver</span>(<span class="params">observer</span>) &#123;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">observerList</span>.<span class="title function_">push</span>(observer);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="title function_">notify</span>(<span class="params">task</span>) &#123;</span><br><span class="line">        <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;发布五星任务&quot;</span>);</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">observerList</span>.<span class="title function_">forEach</span>(<span class="function"><span class="params">observer</span> =&gt;</span> observer.<span class="title function_">update</span>(task))</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> subject = <span class="keyword">new</span> <span class="title class_">Subject</span>();</span><br><span class="line"><span class="keyword">const</span> stu1 = <span class="keyword">new</span> <span class="title class_">Observer</span>(<span class="string">&quot;弟子1&quot;</span>);</span><br><span class="line"><span class="keyword">const</span> stu2 = <span class="keyword">new</span> <span class="title class_">Observer</span>(<span class="string">&quot;弟子2&quot;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// stu1 stu2 购买五星任务通知权限</span></span><br><span class="line">subject.<span class="title function_">addObserver</span>(stu1);</span><br><span class="line">subject.<span class="title function_">addObserver</span>(stu2);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 任务殿发布五星战斗任务</span></span><br><span class="line"><span class="keyword">const</span> warTask = &#123;</span><br><span class="line">    <span class="attr">taskType</span>: <span class="string">&#x27;war&#x27;</span>,</span><br><span class="line">    <span class="attr">taskInfo</span>: <span class="string">&quot;猎杀时刻&quot;</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 任务大殿通知购买权限弟子</span></span><br><span class="line">subject.<span class="title function_">notify</span>(warTask);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 任务殿发布五星日常任务</span></span><br><span class="line"><span class="keyword">const</span> routeTask = &#123;</span><br><span class="line">    <span class="attr">taskType</span>: <span class="string">&#x27;route&#x27;</span>,</span><br><span class="line">    <span class="attr">taskInfo</span>: <span class="string">&quot;种树浇水&quot;</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">subject.<span class="title function_">notify</span>(routeTask);</span><br></pre></td></tr></table></figure>
+
+<h3 id="8-2-发布订阅模式"><a href="#8-2-发布订阅模式" class="headerlink" title="8.2. 发布订阅模式"></a>8.2. 发布订阅模式</h3><ul>
+<li>基本概念</li>
+</ul>
+<blockquote>
+<p>基于一个事件（主题）通道，希望接收通知的对象 <code>Subscriber</code> 通过自定义事件订阅主题，被激活事件的对象 <code>Publisher</code> 通过发布主题事件的方式通知各个订阅该主题的 <code>Subscriber</code> 对象。</p>
+</blockquote>
+<p>因此发布订阅模式与观察者模式相比，发布订阅模式中有三个角色，发布者 <code>Publisher</code> ，事件调度中心 <code>Event Channel</code> ，订阅者 <code>Subscriber</code> 。</p>
+<p>我们继续以弟子领取任务为栗子，宗门感觉把任务订阅放在任务大殿中有些繁琐，于是决定在任务大殿和弟子中间添加<strong>中介</strong>。弟子在中介中订阅其需要的任务类型，当任务大殿发布任务后，中介会将发布任务给对应的订阅者。</p>
+<ul>
+<li><p>宗门任务大殿: 任务发布者 —— <code>Publisher</code></p>
+</li>
+<li><p>中介功能 —— <code>Event Channel</code></p>
+<ul>
+<li><p>维护任务类型，以及每种任务下的订阅情况</p>
+</li>
+<li><p>给订阅者提供订阅功能 —— <code>subscribe</code> 功能</p>
+</li>
+<li><p>当宗门发布任务后，中介会给所有的订阅者发布任务 —— <code>publish</code> 功能</p>
+</li>
+</ul>
+</li>
+<li><p>弟子: 任务接受者 —— <code>Subscriber</code></p>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220715000719802.png" alt="image-20220715000719802"></p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">PubSub</span> &#123;</span><br><span class="line">    <span class="title function_">constructor</span>(<span class="params"></span>) &#123;</span><br><span class="line">        <span class="comment">// 事件中心</span></span><br><span class="line">        <span class="comment">// 存储格式: warTask: [], routeTask: []</span></span><br><span class="line">        <span class="comment">// 每种事件(任务)下存放其订阅者的回调函数</span></span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">events</span> = &#123;&#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 订阅方法</span></span><br><span class="line">    <span class="title function_">subscribe</span>(<span class="params">type, cb</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (!<span class="variable language_">this</span>.<span class="property">events</span>[type]) &#123;</span><br><span class="line">            <span class="variable language_">this</span>.<span class="property">events</span>[type] = [];</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="variable language_">this</span>.<span class="property">events</span>[type].<span class="title function_">push</span>(cb);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 发布方法</span></span><br><span class="line">    <span class="title function_">publish</span>(<span class="params">type, ...args</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="variable language_">this</span>.<span class="property">events</span>[type]) &#123;</span><br><span class="line">            <span class="variable language_">this</span>.<span class="property">events</span>[type].<span class="title function_">forEach</span>(<span class="function"><span class="params">cb</span> =&gt;</span> <span class="title function_">cb</span>(...args))</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 取消订阅方法</span></span><br><span class="line">    <span class="title function_">unsubscribe</span>(<span class="params">type, cb</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="variable language_">this</span>.<span class="property">events</span>[type]) &#123;</span><br><span class="line">            <span class="keyword">const</span> cbIndex = <span class="variable language_">this</span>.<span class="property">events</span>[type].<span class="title function_">findIndex</span>(<span class="function"><span class="params">e</span>=&gt;</span> e === cb)</span><br><span class="line">            <span class="keyword">if</span> (cbIndex != -<span class="number">1</span>) &#123;</span><br><span class="line">                <span class="variable language_">this</span>.<span class="property">events</span>[type].<span class="title function_">splice</span>(cbIndex, <span class="number">1</span>);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (<span class="variable language_">this</span>.<span class="property">events</span>[type].<span class="property">length</span> === <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="keyword">delete</span> <span class="variable language_">this</span>.<span class="property">events</span>[type];</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="title function_">unsubscribeAll</span>(<span class="params">type</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="variable language_">this</span>.<span class="property">events</span>[type]) &#123;</span><br><span class="line">            <span class="keyword">delete</span> <span class="variable language_">this</span>.<span class="property">events</span>[type];</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 创建一个中介公司</span></span><br><span class="line"><span class="keyword">let</span> pubsub = <span class="keyword">new</span> <span class="title class_">PubSub</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">// 弟子一订阅战斗任务</span></span><br><span class="line">pubsub.<span class="title function_">subscribe</span>(<span class="string">&#x27;warTask&#x27;</span>, <span class="keyword">function</span> (<span class="params">taskInfo</span>)&#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;宗门殿发布战斗任务，任务信息:&quot;</span> + taskInfo);</span><br><span class="line">&#125;)</span><br><span class="line"><span class="comment">// 弟子一订阅战斗任务</span></span><br><span class="line">pubsub.<span class="title function_">subscribe</span>(<span class="string">&#x27;routeTask&#x27;</span>, <span class="keyword">function</span> (<span class="params">taskInfo</span>) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;宗门殿发布日常任务，任务信息:&quot;</span> + taskInfo);</span><br><span class="line">&#125;);</span><br><span class="line"><span class="comment">// 弟子三订阅全类型任务</span></span><br><span class="line">pubsub.<span class="title function_">subscribe</span>(<span class="string">&#x27;allTask&#x27;</span>, <span class="keyword">function</span> (<span class="params">taskInfo</span>) &#123;</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&quot;宗门殿发布五星任务，任务信息:&quot;</span> + taskInfo);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 发布战斗任务</span></span><br><span class="line">pubsub.<span class="title function_">publish</span>(<span class="string">&#x27;warTask&#x27;</span>, <span class="string">&quot;猎杀时刻&quot;</span>);</span><br><span class="line">pubsub.<span class="title function_">publish</span>(<span class="string">&#x27;allTask&#x27;</span>, <span class="string">&quot;猎杀时刻&quot;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 发布日常任务</span></span><br><span class="line">pubsub.<span class="title function_">publish</span>(<span class="string">&#x27;routeTask&#x27;</span>, <span class="string">&quot;种树浇水&quot;</span>);</span><br><span class="line">pubsub.<span class="title function_">publish</span>(<span class="string">&#x27;allTask&#x27;</span>, <span class="string">&quot;种树浇水&quot;</span>);</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>在发布订阅模式中，发布者和订阅者不知道对方的存在。需要第三方中介，将订阅者和发布者串联起来，利用中介过滤和分配所有输入的消息。也就是说，<strong>发布-订阅模式用来处理不同系统组件的信息交流，即使这些组件不知道对方的存在</strong>。</p>
+</blockquote>
+<h4 id="8-3-观察者模式和发布订阅模式的差异"><a href="#8-3-观察者模式和发布订阅模式的差异" class="headerlink" title="8.3. 观察者模式和发布订阅模式的差异"></a>8.3. 观察者模式和发布订阅模式的差异</h4><table>
+<thead>
+<tr>
+<th>设计模式</th>
+<th>观察者模式</th>
+<th>发布订阅模式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>主体</td>
+<td>Object观察者、Subject目标对象</td>
+<td>Publisher发布者、Event Channel事件中心、Subscribe订阅者</td>
+</tr>
+<tr>
+<td>主体关系</td>
+<td>Subject中通过observerList记录ObServer</td>
+<td>Publisher和Subscribe不想不知道对方，通过中介联系</td>
+</tr>
+<tr>
+<td>优点</td>
+<td>角色明确，Subject和Object要遵循约定的成员方法</td>
+<td>松散耦合，灵活度高，通常应用在异步编程中</td>
+</tr>
+<tr>
+<td>缺点</td>
+<td>紧耦合</td>
+<td>当事件类型变多时，会增加维护成本</td>
+</tr>
+<tr>
+<td>使用案例</td>
+<td>双向数据绑定</td>
+<td>事件总线EventBus</td>
+</tr>
+</tbody></table>
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/%E9%BB%84%E9%AA%8F%E8%80%81%E5%B8%88%E4%B8%AD%E5%9B%BD%E8%BF%91%E7%8E%B0%E4%BB%A3%E5%8F%B2%E7%BA%B2%E8%A6%812022%E9%87%8D%E7%82%B9%E6%95%B4%E7%90%86/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/TypeScript%E5%85%A5%E9%97%A8/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>

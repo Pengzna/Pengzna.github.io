@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      CMU 15-445: 2. Buffer Pools 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Oct 27, 2022
+  </h3>
+  <h1>
+    CMU 15-445: 2. Buffer Pools
+  </h1>
+  <div class="content markdown-body">
+    <p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220927172727486.png" alt="image-20220927172727486"></p>
+<h2 id="2-1-Lock-和-Latch"><a href="#2-1-Lock-和-Latch" class="headerlink" title="2.1. Lock 和 Latch"></a>2.1. Lock 和 Latch</h2><ul>
+<li><p>lock 更高级，保护高级内容 from other transaction。</p>
+</li>
+<li><p>事务运行时持有 lock</p>
+</li>
+<li><p>要求能够回滚 changes</p>
+</li>
+<li><p>可以暴露给开发人员</p>
+</li>
+<li><p>latch 是更底层的概念，来保护数据结构和内存</p>
+</li>
+<li><p>不需要能够回滚 changes</p>
+</li>
+<li><p>有点类似 mutex（互斥锁）</p>
+</li>
+</ul>
+<h2 id="2-2-page-table-和-page-directory"><a href="#2-2-page-table-和-page-directory" class="headerlink" title="2.2. page table 和 page directory"></a>2.2. page table 和 page directory</h2><ul>
+<li>page directory<ul>
+<li>page id 到数据库文件中的 page location 的映射</li>
+<li>所有 changes 必须持久化</li>
+</ul>
+</li>
+<li>page table<ul>
+<li>page id 到 buffer pool frames 中 page copy 的银蛇</li>
+<li>内存中的数据，不需要在磁盘中保存</li>
+</ul>
+</li>
+</ul>
+<h2 id="2-3-buffer-pool-optimization"><a href="#2-3-buffer-pool-optimization" class="headerlink" title="2.3. buffer pool optimization"></a>2.3. buffer pool optimization</h2><h3 id="2-3-1-Multiple-Buffer-Pool"><a href="#2-3-1-Multiple-Buffer-Pool" class="headerlink" title="2.3.1. Multiple Buffer Pool"></a>2.3.1. Multiple Buffer Pool</h3><ul>
+<li>有多个 buffer pool</li>
+<li>在每个 buffer pool 有局部策略</li>
+<li>比如对每个表都有一个 buffer pool</li>
+<li>可以一定程度缓解多线程争抢 latch 的场景</li>
+</ul>
+<p>Approach Methods：</p>
+<h4 id="2-3-1-1-Object-Id"><a href="#2-3-1-1-Object-Id" class="headerlink" title="2.3.1.1. Object Id"></a>2.3.1.1. Object Id</h4><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220928103255171.png" alt="image-20220928103255171"></p>
+<h4 id="2-3-1-2-Hashing"><a href="#2-3-1-2-Hashing" class="headerlink" title="2.3.1.2. Hashing"></a>2.3.1.2. Hashing</h4><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220928103318990.png" alt="image-20220928103318990"></p>
+<h3 id="2-3-2-pre-fetching"><a href="#2-3-2-pre-fetching" class="headerlink" title="2.3.2. pre-fetching"></a>2.3.2. pre-fetching</h3><ul>
+<li><p>为了最小化磁盘 IO 的影响</p>
+</li>
+<li><p>pre-fetching 的方法</p>
+<ul>
+<li>Sequential Scans</li>
+<li>Index Scans</li>
+</ul>
+</li>
+</ul>
+<h3 id="2-3-3-scan-sharing"><a href="#2-3-3-scan-sharing" class="headerlink" title="2.3.3. scan sharing"></a>2.3.3. scan sharing</h3><ul>
+<li>复用某次查询的数据，用于其他的查询<ul>
+<li>不是 caching，caching 指的是完全相同的查询</li>
+<li>但是 scan sharing 只在乎是否取了同一个 page，而不是查询</li>
+</ul>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220928105027699.png" alt="image-20220928105027699"></p>
+<h3 id="2-3-4-buffer-pool-bypass"><a href="#2-3-4-buffer-pool-bypass" class="headerlink" title="2.3.4. buffer pool bypass"></a>2.3.4. buffer pool bypass</h3><ul>
+<li>为了避免从 page table（hash 表）中查询的开销。</li>
+<li>给每个查询线程分配一个本地内存作为该线程的缓存</li>
+</ul>
+<h2 id="2-4-replace-policy"><a href="#2-4-replace-policy" class="headerlink" title="2.4. replace policy"></a>2.4. replace policy</h2><ul>
+<li>lRU（Least Recently Used）<ul>
+<li>单独维护一个 queue，根据 page 的修改顺序排列</li>
+<li>实现<ul>
+<li>每个 page 带一个时间戳</li>
+<li>clock：每个 page 带一个标志位（reference bit）<ul>
+<li>代表我们上次 check 后，该 page 是否被访问</li>
+<li>page 在一个环形队列（like a clock）</li>
+<li>不是严格的 LRU</li>
+<li>其实它的基本假设是：如果一个 page 在一段时间内不被使用，那么它大概率也不会再被使用，即可移除</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220928143037173.png" alt="image-20220928143037173"></p>
+<ul>
+<li>问题：sequential flooding。</li>
+</ul>
+<h3 id="2-4-1-解决-sequential-flooding"><a href="#2-4-1-解决-sequential-flooding" class="headerlink" title="2.4.1. 解决 sequential flooding"></a>2.4.1. 解决 sequential flooding</h3><h4 id="LRU-K"><a href="#LRU-K" class="headerlink" title="LRU-K"></a>LRU-K</h4><ul>
+<li><p>记录每页的 K 次历史记录</p>
+</li>
+<li><p>不是看哪个 page 的时间戳最老，而是看时间戳之间的间隔</p>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220928145520506.png" alt="image-20220928145520506"></p>
+<h4 id="localization"><a href="#localization" class="headerlink" title="localization"></a>localization</h4><ul>
+<li>从本地的角度移除最少使用的 page，而不是全局的角度</li>
+</ul>
+<h4 id="priority-hints"><a href="#priority-hints" class="headerlink" title="priority hints"></a>priority hints</h4><h4 id="dirty-page"><a href="#dirty-page" class="headerlink" title="dirty page"></a>dirty page</h4><ul>
+<li>每个 page 有一个 dirty bit<ul>
+<li>告诉我们自从上次 page 被放入后，是否被修改</li>
+</ul>
+</li>
+<li>要么每次 drop 掉不 dirty 的 page，但这些 page 可能会被用到</li>
+<li>要么每次写出一个 dirty page 到磁盘（产生一次 IO），再将其替换之（又产生一次 IO）</li>
+<li>数据库一般有一个定时任务线程，负责定时写出 dirty page，然后将其置为 clean</li>
+</ul>
+<p>project 说明在 13：40<a target="_blank" rel="noopener" href="https://www.zhihu.com/zvideo/1416128309478862848">(2 封私信) CMU 15-445 18 Buffer Pools 04 - 知乎 (zhihu.com)</a></p>
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/CMU-15-445-1-Disk-Manager/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/CMU-15-445-3-Hash-Table/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>
