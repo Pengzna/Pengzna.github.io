@@ -11,7 +11,7 @@
   
   <title>
     
-      a MVVM toy with TypeScript 
+      用 Typescript 实现的简易 MVVM 框架 
       
       
     
@@ -106,11 +106,10 @@
     Jul 25, 2022
   </h3>
   <h1>
-    a MVVM toy with TypeScript
+    用 Typescript 实现的简易 MVVM 框架
   </h1>
   <div class="content markdown-body">
-    <p>[toc]</p>
-<h1 id="1-核心原理"><a href="#1-核心原理" class="headerlink" title="1. 核心原理"></a>1. 核心原理</h1><p>与 MVC 相比，MVVM 包含数据驱动视图更新的机制 &amp; 渲染视图的模板引擎。总的来说 MVVM 框架的核心原理如下：</p>
+    <h1 id="1-核心原理"><a href="#1-核心原理" class="headerlink" title="1. 核心原理"></a>1. 核心原理</h1><p>与 MVC 相比，MVVM 包含数据驱动视图更新的机制 &amp; 渲染视图的模板引擎。总的来说 MVVM 框架的核心原理如下：</p>
 <h2 id="1-1-数据劫持"><a href="#1-1-数据劫持" class="headerlink" title="1.1. 数据劫持"></a>1.1. 数据劫持</h2><blockquote>
 <p>通过 js 原生的<code>Object.defineProperty</code>方法，可以进行数据劫持。而做数据劫持时主要用到的就是 get 和 set 两个属性。通过该方法，被劫持的对象属性，只要在外界获取或者修改属性值都会触发 get 或 set 方法，这样我们就可以在 get 或 set 中对属性做一些额外对操作。</p>
 </blockquote>

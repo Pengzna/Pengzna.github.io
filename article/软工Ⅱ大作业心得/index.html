@@ -11,7 +11,7 @@
   
   <title>
     
-      软工Ⅱ大作业心得 
+      南京大学软件学院-软工Ⅱ大作业心得 
       
       
     
@@ -106,7 +106,7 @@
     Jul 10, 2022
   </h3>
   <h1>
-    软工Ⅱ大作业心得
+    南京大学软件学院-软工Ⅱ大作业心得
   </h1>
   <div class="content markdown-body">
     <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 接口类，通过泛型注入具体参数，实现每个方法的参数多态</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">SheetService</span> &lt;SheetVO, SheetState&gt;&#123;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 创建单据</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> userVO 操作用户</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sheetVO 单据VO</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">void</span> <span class="title function_">makeSheet</span><span class="params">(UserVO userVO, SheetVO sheetVO)</span>;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据状态获取单据(state == null 则获取所有单据)</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> state 单据状态</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> 符合条件的所有单据</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    List&lt;SheetVO&gt; <span class="title function_">getSheetByState</span><span class="params">(SheetState state)</span>;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据进货单id进行审批(state == 审批完成&quot;/&quot;审批失败&quot;)</span></span><br><span class="line"><span class="comment">     * 在controller层进行权限控制</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sheetId 单据id</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> state 单据修改后的状态</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">void</span> <span class="title function_">approval</span><span class="params">(String sheetId, SheetState state)</span>;</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据单据Id搜索单据信息</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sheetId 单据Id</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> 单据</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    SheetVO <span class="title function_">getSheetById</span><span class="params">(String sheetId)</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 实现类</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">xxxSheetServiceImpl</span> <span class="keyword">implements</span> <span class="title class_">SheetService</span>&lt;xxxSheetVO, xxxSheetState&gt;</span><br></pre></td></tr></table></figure>
