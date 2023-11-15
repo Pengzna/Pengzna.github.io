@@ -103,13 +103,18 @@
 
 <div class="post">
   <h3 class="date">
-    Oct 27, 2022
+    Oct 07, 2022
   </h3>
   <h1>
     CMU 15-445: 5. Index Concurrency Control
   </h1>
   <div class="content markdown-body">
-    <h2 id="5-2-Lock-Latches"><a href="#5-2-Lock-Latches" class="headerlink" title="5.2. Lock &amp; Latches"></a>5.2. Lock &amp; Latches</h2><ul>
+    <h1 id="5-Index-Concurrency-Control"><a href="#5-Index-Concurrency-Control" class="headerlink" title="5. Index Concurrency Control"></a>5. Index Concurrency Control</h1><h2 id="5-1-concurrency（并发）"><a href="#5-1-concurrency（并发）" class="headerlink" title="5.1. concurrency（并发）"></a>5.1. concurrency（并发）</h2><p>A concurrency control protocol 的正确性标准在于：</p>
+<ul>
+<li>logical correctness：线程必须能够完整正确的看到其应该看到的数据</li>
+<li>physical correctness：数据内部是否完整合理，比如一个数据结构指针不会指向非法的内存地址</li>
+</ul>
+<h2 id="5-2-Lock-Latches"><a href="#5-2-Lock-Latches" class="headerlink" title="5.2. Lock &amp; Latches"></a>5.2. Lock &amp; Latches</h2><ul>
 <li><p>Lock：</p>
 <p>是一个高层，逻辑上的原语，其在事务之间保护数据库的内容。</p>
 <ul>
@@ -227,6 +232,7 @@
 <li><p>解决方法：中断其中之一</p>
 </li>
 </ul>
+
   </div>
   
     

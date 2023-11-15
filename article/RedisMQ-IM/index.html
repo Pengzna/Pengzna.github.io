@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      基于 Redis 发布订阅实现IM消息队列 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog 👋</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="_blank" href="mailto:junzhi.pengzna@gmail.com">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Jul 26, 2022
+  </h3>
+  <h1>
+    基于 Redis 发布订阅实现IM消息队列
+  </h1>
+  <div class="content markdown-body">
+    <p>使用Redis的发布订阅模式实现即时通讯功能的消息队列中间件，以适应分布式模块中即时通讯服务的需要。</p>
+<p>整合方式：SpringBoot + WebSocket + Redis</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/60047df223d04285afea73d1cacfa688.png" alt="在这里插入图片描述"></p>
+<h2 id="1-发布订阅模式"><a href="#1-发布订阅模式" class="headerlink" title="1. 发布订阅模式"></a>1. 发布订阅模式</h2><p>Redis的发布订阅机制是一种消息通信模式，包括三个部分，发布者（pub）发送消息，订阅者（sub）接收信息和<code>Channel</code>，这里的<code>Channel</code>类似于<code>Kafka</code>中的<code>topic</code>的概念。</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/20210702104227710.png" alt="img"></p>
+<p>发布者和订阅者都是<code>Redis</code>客户端，<code>Channel</code>则为<code>Redis</code>服务器端，可以理解为一种特殊的数据<a target="_blank" rel="noopener" href="https://so.csdn.net/so/search?q=%E5%AD%98%E5%82%A8%E7%BB%93%E6%9E%84&spm=1001.2101.3001.7020">存储结构</a>。发布者将消息发送到某个的频道，订阅了这个频道的订阅者就能接收到这条消息。</p>
+<p>Redis客户端可以订阅任意数量的频道。</p>
+<p><code>Redis</code>的这种发布订阅机制与基于主题的发布订阅类似，<code>Channel</code>相当于主题。</p>
+<p>下图展示频道channel1，以及订阅这个频道的三个客户端–client2，client5和client1之间的关系</p>
+<p><img src="https://img-blog.csdnimg.cn/ae3ee06fde0b4b81ad1278a920dbfcc2.png#pic_center" alt="img"></p>
+<p>当有新消息通过PUBLISH命令发送给频道channel1时，这个消息就会被发送给订阅它的三个客户端</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/ce1bfeef41514ea59745f713fc49d439.png" alt="在这里插入图片描述"></p>
+<h3 id="1-1-相关命令"><a href="#1-1-相关命令" class="headerlink" title="1.1. 相关命令"></a>1.1. 相关命令</h3><h4 id="1-1-1-订阅者-等待接收消息"><a href="#1-1-1-订阅者-等待接收消息" class="headerlink" title="1.1.1. 订阅者&#x2F;等待接收消息"></a>1.1.1. 订阅者&#x2F;等待接收消息</h4><p>首先打开 Redis 客户端，然后订阅了一个名为“bbx”的 channel，使用如下命令:</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">127.0.0.1:6379&gt; SUBSCRIBE bbx</span><br><span class="line">Reading messages... (press Ctrl-C to quit)</span><br><span class="line">1) <span class="string">&quot;subscribe&quot;</span></span><br><span class="line">2) <span class="string">&quot;bbx&quot;</span></span><br><span class="line">3) (<span class="built_in">integer</span>) 1</span><br></pre></td></tr></table></figure>
+
+<p>使用SUBSCRIBE命令订阅了名为 bbx 的 channel。命令执行后该客户端会出处于等待接收消息的阻塞状态。</p>
+<h4 id="1-1-2-发布者-发送消息"><a href="#1-1-2-发布者-发送消息" class="headerlink" title="1.1.2. 发布者&#x2F;发送消息"></a>1.1.2. 发布者&#x2F;发送消息</h4><p>下面再启动一个 Redis 客户端，输入如下命令：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">127.0.0.1:6379&gt; PUBLISH bbx hello</span><br><span class="line">(<span class="built_in">integer</span>) 1</span><br><span class="line">127.0.0.1:6379&gt; PUBLISH bbx world</span><br><span class="line">(<span class="built_in">integer</span>) 1</span><br><span class="line">127.0.0.1:6379&gt; </span><br></pre></td></tr></table></figure>
+
+<h4 id="1-1-3-订阅者-成功接收消息"><a href="#1-1-3-订阅者-成功接收消息" class="headerlink" title="1.1.3. 订阅者&#x2F;成功接收消息"></a>1.1.3. 订阅者&#x2F;成功接收消息</h4><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">127.0.0.1:6379&gt; SUBSCRIBE bbx</span><br><span class="line">Reading messages... (press Ctrl-C to quit)</span><br><span class="line">1) <span class="string">&quot;subscribe&quot;</span></span><br><span class="line">2) <span class="string">&quot;bbx&quot;</span></span><br><span class="line">3) (<span class="built_in">integer</span>) 1</span><br><span class="line"><span class="comment">#等待读取推送消息</span></span><br><span class="line">1) <span class="string">&quot;message&quot;</span>	<span class="comment">#消息</span></span><br><span class="line">2) <span class="string">&quot;bbx&quot;</span>		<span class="comment">#频道</span></span><br><span class="line">3) <span class="string">&quot;hello&quot;</span>		<span class="comment">#消息具体内容</span></span><br><span class="line">1) <span class="string">&quot;message&quot;</span></span><br><span class="line">2) <span class="string">&quot;bbx&quot;</span></span><br><span class="line">3) <span class="string">&quot;world&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="1-2-原理"><a href="#1-2-原理" class="headerlink" title="1.2. 原理"></a>1.2. 原理</h3><blockquote>
+<p>源码：pubsub.c</p>
+</blockquote>
+<p>Redis通过<code>PUBLISH</code>，<code>SUBSCRIBE</code>和<code>PSUBSCRIBE</code>等命令实现发布和订阅功能</p>
+<p>通过<code>SUBSCRIBE</code>命令订阅某频道后，redis-server里维护了一个字典，字典的键就是一个频道，字典的值则是一个链表，链表中保存了所有订阅这个频道的客户端。<code>SUBSCRIBE</code>命令的关键，就是将客户端添加到给定频道的订阅链表中。</p>
+<p>通过<code>PUBLISH</code>命令向订阅者发送消息，redis-server会使用给定频道作为键，在它维护的频道字典中查找记录了订阅这个频道的所有客户端的链表，将消息发布给所有订阅者</p>
+<p>Pub和Sub从字面上理解就是发布（Publish）和订阅（Subscribe），在redis中，可以设定对某一个key值进行消息发布及消息订阅，当一个key值上进行了消息发布后，所有订阅它的客户端都会收到相应的信息，这一功能最明显的用法就是实时消息系统，比如普通的即时聊天，群聊等功能。</p>
+<h3 id="1-3-缺点"><a href="#1-3-缺点" class="headerlink" title="1.3. 缺点"></a>1.3. 缺点</h3><ul>
+<li>消息无法持久化，存在丢失风险，即消息一经发布，即使没有任何订阅方处理,该条消息就会丢失</li>
+<li>没有类似ACK的机制，即发布方不会确保订阅方成功接收</li>
+<li>广播机制，下游消费能力取决于消费方本身。广播机制无法通过添加多个消费方增强消费能力, 因为这和发布&#x2F;订阅模型本身的目的是不符的。广播机制的目的是一个一个发布者被多个订阅进行不同的处理</li>
+</ul>
+<p>解决方法：</p>
+<blockquote>
+<ol>
+<li>添加持久化层，加入redis缓存和MySQL</li>
+<li>结合WebSocket，实现消息推送、握手、心跳检测和广播等机制</li>
+</ol>
+</blockquote>
+<h2 id="2-和SpringBoot、WebSocket的整合"><a href="#2-和SpringBoot、WebSocket的整合" class="headerlink" title="2. 和SpringBoot、WebSocket的整合"></a>2. 和SpringBoot、WebSocket的整合</h2><h3 id="2-1-依赖"><a href="#2-1-依赖" class="headerlink" title="2.1. 依赖"></a>2.1. 依赖</h3><ul>
+<li><em><strong>spring-boot-starter-web</strong></em>：帮助我们启动一个Web服务器；</li>
+<li><em><strong>spring-boot-starter-data-redis</strong></em>：帮助我们集成Redis；</li>
+<li><em><strong>lombok</strong></em>：方便我们使用 <em><strong>@Slf4j</strong></em>&#x2F;<em><strong>@Data</strong></em> 等，简化代码；</li>
+<li><em><strong>spring-boot-starter-websocket</strong></em>：帮助我们在SpringBoot客户端起WebSocket进程</li>
+</ul>
+<h3 id="2-2-架构"><a href="#2-2-架构" class="headerlink" title="2.2. 架构"></a>2.2. 架构</h3><h4 id="2-2-1-整体架构"><a href="#2-2-1-整体架构" class="headerlink" title="2.2.1. 整体架构"></a>2.2.1. 整体架构</h4><blockquote>
+<p>Redis(消息队列)——&gt; MySQL(持久化) ——&gt; WebSockets(消息转发)——&gt; FrontEnd(客户端)</p>
+</blockquote>
+<h4 id="2-2-2-后端架构"><a href="#2-2-2-后端架构" class="headerlink" title="2.2.2. 后端架构"></a>2.2.2. 后端架构</h4><blockquote>
+<p>Controller——(n,1)——&gt;Redis——(1,n)———&gt;Listener——(1,n)——&gt;WebSockets</p>
+</blockquote>
+<h3 id="2-3-Redis配置"><a href="#2-3-Redis配置" class="headerlink" title="2.3. Redis配置"></a>2.3. Redis配置</h3><h4 id="2-3-1-自定义RedisTemplate"><a href="#2-3-1-自定义RedisTemplate" class="headerlink" title="2.3.1. 自定义RedisTemplate"></a>2.3.1. 自定义RedisTemplate</h4><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">RedisTemp</span> &#123;</span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="meta">@SuppressWarnings(&quot;all&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> RedisTemplate&lt;String, Object&gt; <span class="title function_">redisTemplate</span><span class="params">(RedisConnectionFactory factory)</span> &#123;</span><br><span class="line">        RedisTemplate&lt;String, Object&gt; template = <span class="keyword">new</span> <span class="title class_">RedisTemplate</span>&lt;String, Object&gt;();</span><br><span class="line">        template.setConnectionFactory(factory);</span><br><span class="line">        <span class="comment">// Json序列化配置</span></span><br><span class="line">        <span class="type">Jackson2JsonRedisSerializer</span> <span class="variable">jackson2JsonRedisSerializer</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Jackson2JsonRedisSerializer</span>(Object.class);</span><br><span class="line">        <span class="type">ObjectMapper</span> <span class="variable">om</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ObjectMapper</span>();</span><br><span class="line">        om.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);</span><br><span class="line">        om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);</span><br><span class="line">        jackson2JsonRedisSerializer.setObjectMapper(om);</span><br><span class="line">        <span class="comment">// String 的序列化</span></span><br><span class="line">        <span class="type">StringRedisSerializer</span> <span class="variable">stringRedisSerializer</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">StringRedisSerializer</span>();</span><br><span class="line">        <span class="comment">// key采用String的序列化方式</span></span><br><span class="line">        template.setKeySerializer(stringRedisSerializer);</span><br><span class="line">        <span class="comment">// hash的key也采用String的序列化方式</span></span><br><span class="line">        template.setHashKeySerializer(stringRedisSerializer);</span><br><span class="line">        <span class="comment">// value序列化方式采用jackson</span></span><br><span class="line">        template.setValueSerializer(jackson2JsonRedisSerializer);</span><br><span class="line">        <span class="comment">// hash的value序列化方式采用jackson</span></span><br><span class="line">        template.setHashValueSerializer(jackson2JsonRedisSerializer);</span><br><span class="line">        template.afterPropertiesSet();</span><br><span class="line">        <span class="keyword">return</span> template;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-3-2-发布订阅配置"><a href="#2-3-2-发布订阅配置" class="headerlink" title="2.3.2. 发布订阅配置"></a>2.3.2. 发布订阅配置</h4><p>由于我们在发布者、订阅者的代码中均没有指定要订阅的channel，因此需要在其他地方（发布订阅配置类）指定channel。</p>
+<p>此配置类主要实现了Redis消息监听器容器，这个容器加载了RedisConnectionFactory和消息监听器；可以添加多个监听不同话题的redis监听器，只需要把消息监听器和相应的消息订阅处理器绑定，该消息监听器通过反射技术调用消息订阅处理器的相关方法进行一些业务处理。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">SubConfig</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> RedisConnectionFactory redisConnectionFactory;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="meta">@SuppressWarnings(&quot;all&quot;)</span></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">SubConfig</span><span class="params">(RedisConnectionFactory redisConnectionFactory)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.redisConnectionFactory = redisConnectionFactory;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * &lt;h2&gt;配置消息监听器&lt;/h2&gt;</span></span><br><span class="line"><span class="comment">     * */</span></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="keyword">public</span> MessageListener <span class="title function_">listener</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> ConnectionListener.getInstance();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * &lt;h2&gt;配置 发布/订阅 的 Topic&lt;/h2&gt;</span></span><br><span class="line"><span class="comment">     * */</span></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="keyword">public</span> ChannelTopic <span class="title function_">channelTopic</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ChannelTopic</span>(<span class="string">&quot;nxb message test&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * &lt;h2&gt;将消息监听器绑定到消息容器&lt;/h2&gt;</span></span><br><span class="line"><span class="comment">     * 并进行容器的设置</span></span><br><span class="line"><span class="comment">     * */</span></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="keyword">public</span> RedisMessageListenerContainer <span class="title function_">messageListenerContainer</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="type">RedisMessageListenerContainer</span> <span class="variable">container</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">RedisMessageListenerContainer</span>();</span><br><span class="line">        container.setConnectionFactory(redisConnectionFactory);</span><br><span class="line">        <span class="comment">// 此处可以更换订阅主题</span></span><br><span class="line">        container.addMessageListener(listener(), channelTopic());</span><br><span class="line">        <span class="keyword">return</span> container;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-4-消费者（sub）"><a href="#2-4-消费者（sub）" class="headerlink" title="2.4. 消费者（sub）"></a>2.4. 消费者（sub）</h3><p>这里需要实现<code>MessageListener</code>接口。目的是利用<code>onMessage</code>方法，监听<code>channel</code>中的消息队列，实现接受消息。</p>
+<p>消费者的核心方法是<code>onMessage</code>，方法传入订阅到的消息，然后进行处理即可。</p>
+<p>这里把redis的消费者方法和websocket进行了整合，redis消费者收到上游消息后，由websocket转发给对应用户，再转发给前端。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 负责订阅redis发布的接受器。</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">@Component</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ConnectionListener</span> <span class="keyword">implements</span> <span class="title class_">MessageListener</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> ConcurrentHashMap&lt;String, WebSocket&gt; webSockets = <span class="keyword">new</span> <span class="title class_">ConcurrentHashMap</span>&lt;&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">ConnectionListener</span> <span class="variable">instance</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ConnectionListener</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="title function_">ConnectionListener</span><span class="params">()</span>&#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> ConnectionListener <span class="title function_">getInstance</span><span class="params">()</span>&#123;</span><br><span class="line">        <span class="keyword">return</span> instance;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 接收到消息</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> message</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> pattern</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onMessage</span><span class="params">(Message message, <span class="type">byte</span>[] pattern)</span> &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">body</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">String</span>(message.getBody());</span><br><span class="line">        <span class="type">MessageVO</span> <span class="variable">messageVO</span> <span class="operator">=</span> JSON.parseObject((String)JSON.parse(message.toString()), MessageVO.class);</span><br><span class="line">        System.out.println(<span class="string">&quot;received message: &quot;</span>+ messageVO);</span><br><span class="line">        sendMessage(messageVO);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">addConnection</span><span class="params">(String userId,WebSocket webSocket)</span>&#123;</span><br><span class="line">        webSockets.put(userId,webSocket);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">containConnection</span><span class="params">(String userId)</span>&#123;</span><br><span class="line">        <span class="keyword">return</span> webSockets.containsKey(userId);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">removeConnection</span><span class="params">(String userId)</span>&#123;</span><br><span class="line">        webSockets.remove(userId);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">connectionCount</span><span class="params">()</span>&#123;</span><br><span class="line">        <span class="keyword">return</span> webSockets.size();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">sendMessage</span><span class="params">(MessageVO message)</span>&#123;</span><br><span class="line">        <span class="comment">// 优化逻辑</span></span><br><span class="line">        <span class="keyword">if</span> (containConnection(message.getUser()))&#123;</span><br><span class="line">            <span class="type">String</span> <span class="variable">key</span> <span class="operator">=</span> message.getUser();</span><br><span class="line">            webSockets.get(key).sendMessage(message);</span><br><span class="line">            System.out.println(message + <span class="string">&quot; has been sent to &quot;</span> + key);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-5-生产者（pub）"><a href="#2-5-生产者（pub）" class="headerlink" title="2.5. 生产者（pub）"></a>2.5. 生产者（pub）</h3><p>指定要发布到的channel和要发布的消息。注意这里的channel由配置类进行管理</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 消息发布者服务</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">@Service</span></span><br><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">PublishService</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//注入自定义redisTemplate</span></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> RedisUtil redisUtil;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> ChannelTopic channelTopic;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Publish.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> message   the message</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">publish</span><span class="params">(Object message)</span> &#123;</span><br><span class="line">        redisUtil.convertAndSend(channelTopic.getTopic(), message);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其中<code>redisUtil</code>封装了转发消息方法：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 向通道发布消息</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">convertAndSend</span><span class="params">(String channel, Object message)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (!StringUtils.hasText(channel)) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        redisTemplate.convertAndSend(channel, message);</span><br><span class="line">        log.info(<span class="string">&quot;发送消息成功，channel：&#123;&#125;，message：&#123;&#125;&quot;</span>, channel, message);</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        log.info(<span class="string">&quot;发送消息失败，channel：&#123;&#125;，message：&#123;&#125;&quot;</span>, channel, message);</span><br><span class="line">        e.printStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="3-测试"><a href="#3-测试" class="headerlink" title="3. 测试"></a>3. 测试</h2><h3 id="3-1-测试类"><a href="#3-1-测试类" class="headerlink" title="3.1. 测试类"></a>3.1. 测试类</h3><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="meta">@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">RedisSubPubTest</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> ChannelTopic topic;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Autowired</span></span><br><span class="line">    <span class="keyword">private</span> RedisUtil redisUtil;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Test</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">test</span><span class="params">()</span>&#123;</span><br><span class="line">        <span class="keyword">final</span> <span class="type">String</span> <span class="variable">TOPIC</span> <span class="operator">=</span> <span class="string">&quot;TEST_TOPIC1&quot;</span>; <span class="comment">// 订阅主题</span></span><br><span class="line">        <span class="comment">// 发布消息</span></span><br><span class="line">        <span class="type">MessageVO</span> <span class="variable">messageVO</span> <span class="operator">=</span> MessageVO.builder()</span><br><span class="line">                .user(<span class="string">&quot;pengzna&quot;</span>)</span><br><span class="line">                .msg(<span class="string">&quot;hello world！&quot;</span>)</span><br><span class="line">                .build();</span><br><span class="line">        redisUtil.convertAndSend(topic.getTopic(), messageVO);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-测试结果"><a href="#3-2-测试结果" class="headerlink" title="3.2. 测试结果"></a>3.2. 测试结果</h3><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220726182800342.png" alt="image-20220726182800342"></p>
+<hr>
+<p><em>参考资料</em></p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://www.runoob.com/redis/redis-pub-sub.html">Redis 发布订阅 | 菜鸟教程 (runoob.com)</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/kendoziyu/p/15802698.html">SpringBoot整合Redis实现发布订阅功能实践 - 极客子羽 - 博客园 (cnblogs.com)</a></li>
+<li><a target="_blank" rel="noopener" href="https://blog.csdn.net/BBQ__ZXB/article/details/124980860">(26条消息) Spring boot整合Redis实现发布订阅（超详细）_BBQ__XB的博客-CSDN博客_springboot 发布订阅</a></li>
+<li><a target="_blank" rel="noopener" href="https://blog.csdn.net/Vector97/article/details/118407461?spm=1001.2101.3001.6650.1&utm_medium=distribute.pc_relevant.none-task-blog-2~default~CTRLIST~default-1-118407461-blog-124980860.pc_relevant_default&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2~default~CTRLIST~default-1-118407461-blog-124980860.pc_relevant_default&utm_relevant_index=2">(26条消息) Springboot集成Redis实现发布订阅功能（Java Lettuce客户端）_iFence的博客-CSDN博客_lettuce 发布订阅</a></li>
+<li><a target="_blank" rel="noopener" href="https://blog.csdn.net/weixin_44874132/article/details/124192307">(26条消息) SpringBoot整合redis实现发布订阅模式_叶枫^_^的博客-CSDN博客_redis发布订阅 springboot</a></li>
+<li>jfy同学代码</li>
+</ul>
+
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/TypeScript-learning/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/ROS-installation/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>

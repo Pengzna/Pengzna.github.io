@@ -551,7 +551,7 @@ a:hover {
 }
 
 .container.archives .title {
-  text-transform: uppercase;
+  /* text-transform: uppercase; */
 }
 
 .container.archives .title a:hover {

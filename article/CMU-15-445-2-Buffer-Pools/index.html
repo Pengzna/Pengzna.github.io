@@ -103,13 +103,19 @@
 
 <div class="post">
   <h3 class="date">
-    Oct 27, 2022
+    Sep 21, 2022
   </h3>
   <h1>
     CMU 15-445: 2. Buffer Pools
   </h1>
   <div class="content markdown-body">
-    <p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220927172727486.png" alt="image-20220927172727486"></p>
+    <h1 id="2-Buffer-Pools"><a href="#2-Buffer-Pools" class="headerlink" title="2. Buffer Pools"></a>2. Buffer Pools</h1><p><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/fecd0358cd29">【学习笔记 3】数据库中的 buffer pool - 简书 (jianshu.com)</a></p>
+<p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/364322857">CMU 15445 学习笔记——Buffer Pool - 知乎 (zhihu.com)</a></p>
+<ul>
+<li>这段内存完全是由数据库控制而不是操作系统</li>
+<li>类似于数据库的内存</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220927172727486.png" alt="image-20220927172727486"></p>
 <h2 id="2-1-Lock-和-Latch"><a href="#2-1-Lock-和-Latch" class="headerlink" title="2.1. Lock 和 Latch"></a>2.1. Lock 和 Latch</h2><ul>
 <li><p>lock 更高级，保护高级内容 from other transaction。</p>
 </li>
@@ -210,6 +216,7 @@
 <li>数据库一般有一个定时任务线程，负责定时写出 dirty page，然后将其置为 clean</li>
 </ul>
 <p>project 说明在 13：40<a target="_blank" rel="noopener" href="https://www.zhihu.com/zvideo/1416128309478862848">(2 封私信) CMU 15-445 18 Buffer Pools 04 - 知乎 (zhihu.com)</a></p>
+
   </div>
   
     

@@ -109,7 +109,12 @@
     CMU 15-445: 7. Join Algorithms
   </h1>
   <div class="content markdown-body">
-    <h2 id="7-1-Join-operator-output"><a href="#7-1-Join-operator-output" class="headerlink" title="7.1. Join operator output"></a>7.1. Join operator output</h2><ul>
+    <h1 id="7-Join-Algorithms"><a href="#7-Join-Algorithms" class="headerlink" title="7. Join Algorithms"></a>7. Join Algorithms</h1><ul>
+<li>为什么需要 join</li>
+</ul>
+<p>由于为消除 table 中信息的冗余，我们会采取<strong>normalize</strong>来使得数据库 table 的设计符合一定范式，但是之后需要使用<strong>join</strong>来重建原来的 tuple</p>
+<p>一般使用<strong>inner equijoin</strong>,<strong>inner equijoin</strong>连接两张表中 key 相同的 tuple。其他 join 算法可以通过该算法调整得到</p>
+<h2 id="7-1-Join-operator-output"><a href="#7-1-Join-operator-output" class="headerlink" title="7.1. Join operator output"></a>7.1. Join operator output</h2><ul>
 <li>copy outer 和 inner tuples 的 attributes into a new tuple.</li>
 <li>Subsequent operators in the query plan never need to go back to the base tables to get more data.</li>
 </ul>
@@ -169,13 +174,14 @@
 <li>扫描内标，然后在每个 tuple 上使用<em>h1</em>，跳转到哈希表上并找到匹配的 tuple</li>
 </ul>
 <p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220930105402810.png" alt="image-20220930105402810"></p>
+
   </div>
   
     
       <a id="older" class="blog-nav" href="/article/CMU-15-445-6-Query-Execution/">OLDER&nbsp;&gt;</a>
       
         
-          <a id="newer" class="blog-nav" href="/article/iPad-RD-client-%E5%AE%9E%E7%8E%B0-Win10-%E8%BF%9C%E7%A8%8B%E6%8E%A7%E5%88%B6/">&lt;&nbsp;NEWER</a>
+          <a id="newer" class="blog-nav" href="/article/Win10-RD-client/">&lt;&nbsp;NEWER</a>
           
             
 </div>

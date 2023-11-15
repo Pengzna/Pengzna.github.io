@@ -109,7 +109,12 @@
     用 Typescript 实现的简易 MVVM 框架
   </h1>
   <div class="content markdown-body">
-    <h1 id="1-核心原理"><a href="#1-核心原理" class="headerlink" title="1. 核心原理"></a>1. 核心原理</h1><p>与 MVC 相比，MVVM 包含数据驱动视图更新的机制 &amp; 渲染视图的模板引擎。总的来说 MVVM 框架的核心原理如下：</p>
+    <p>2022年秋季百度暑期课程的大作业，用typescript实现的简易MVVM框架。</p>
+<p>实现了数据劫持、单向绑定、双向绑定、发布订阅模式等</p>
+<img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220714175940359.png" alt="image-20220714175940359" style="zoom:50%;" />
+
+
+<h1 id="1-核心原理"><a href="#1-核心原理" class="headerlink" title="1. 核心原理"></a>1. 核心原理</h1><p>与 MVC 相比，MVVM 包含数据驱动视图更新的机制 &amp; 渲染视图的模板引擎。总的来说 MVVM 框架的核心原理如下：</p>
 <h2 id="1-1-数据劫持"><a href="#1-1-数据劫持" class="headerlink" title="1.1. 数据劫持"></a>1.1. 数据劫持</h2><blockquote>
 <p>通过 js 原生的<code>Object.defineProperty</code>方法，可以进行数据劫持。而做数据劫持时主要用到的就是 get 和 set 两个属性。通过该方法，被劫持的对象属性，只要在外界获取或者修改属性值都会触发 get 或 set 方法，这样我们就可以在 get 或 set 中对属性做一些额外对操作。</p>
 </blockquote>
@@ -242,13 +247,14 @@
 <h2 id="4-3-测试结果"><a href="#4-3-测试结果" class="headerlink" title="4.3. 测试结果"></a>4.3. 测试结果</h2><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220720123743581.png" alt="image-20220720123743581"></p>
 <h2 id="4-4-测试覆盖率"><a href="#4-4-测试覆盖率" class="headerlink" title="4.4. 测试覆盖率"></a>4.4. 测试覆盖率</h2><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220722113152793.png" alt="image-20220722113152793"></p>
 <p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20220722113218413.png" alt="image-20220722113218413"></p>
+
   </div>
   
     
-      <a id="older" class="blog-nav" href="/article/%E8%BD%AF%E5%B7%A5%E2%85%A1%E5%A4%A7%E4%BD%9C%E4%B8%9A%E5%BF%83%E5%BE%97/">OLDER&nbsp;&gt;</a>
+      <a id="older" class="blog-nav" href="/article/SE%E2%85%A1-significant-hw/">OLDER&nbsp;&gt;</a>
       
         
-          <a id="newer" class="blog-nav" href="/article/Spring%E5%AD%A6%E4%B9%A0/">&lt;&nbsp;NEWER</a>
+          <a id="newer" class="blog-nav" href="/article/DOM-review-frontend-%20architecture/">&lt;&nbsp;NEWER</a>
           
             
 </div>

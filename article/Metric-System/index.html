@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      开源 Metric 框架调研与 IoTDB Metric 系统性能优化 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog 👋</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="_blank" href="mailto:junzhi.pengzna@gmail.com">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Nov 10, 2023
+  </h3>
+  <h1>
+    开源 Metric 框架调研与 IoTDB Metric 系统性能优化
+  </h1>
+  <div class="content markdown-body">
+    <p>DropWizard-Metric 和 MicroMeter 项目是 IoTDB Metric 系统的两大 baseline 之一。目前 IoTDB 在启动时分别提供基于 DropWizard-Metric 和 MicroMeter 实现的监控系统供用户选择。</p>
+<p>本文基于 DropWizard-Metric 和 MicroMeter 的系统实现，对比二者实现性能优劣，期望能整合实现出 IoTDB 内部的最优监控系统，对于用户屏蔽算法库选择的参数，探究 IoTDB Metric 性能优化的可能。</p>
+<h1 id="1-系统设计"><a href="#1-系统设计" class="headerlink" title="1. 系统设计"></a>1. 系统设计</h1><ul>
+<li>DropWizard</li>
+</ul>
+<p>DropWizard 组件类型不复杂，核心组件类图如下。后文会对其一一解析。</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115143242599.png" alt="image-20231115143242599"></p>
+<ul>
+<li>Micrometer</li>
+</ul>
+<p>在 Micrometer 中，所有监控指标都继承名为<code>Meter</code>的接口。Micrometer 有一组包含各种监控系统实现的模块，其中的每一种实现被称为<code>registry</code>。</p>
+<ol>
+<li>Micrometer提供了与供应商无关的接口，包括 <strong>timers（计时器）</strong>， <strong>gauges（量规）</strong>， <strong>counters（计数器）</strong>， <strong>distribution summaries（分布式摘要）</strong>， <strong>long task timers（长任务定时器）</strong>。它具有维度数据模型，当与维度监视系统结合使用时，可以高效地访问特定的命名度量，并能够跨维度深入研究。</li>
+<li>可以看到，Micrometer 的核心组件、概念等与 DropWizard 类似。但是 Micrometer 组件非常丰富（提供了很多实现），因此类图过于复杂，此处不作赘述，后文将展开分析。</li>
+</ol>
+<h2 id="1-1-核心组件"><a href="#1-1-核心组件" class="headerlink" title="1.1. 核心组件"></a>1.1. 核心组件</h2><h3 id="1-1-1-MetricsRegistry-MeterRegistry"><a href="#1-1-1-MetricsRegistry-MeterRegistry" class="headerlink" title="1.1.1. MetricsRegistry &#x2F; MeterRegistry"></a>1.1.1. MetricsRegistry &#x2F; MeterRegistry</h3><h4 id="DropWizard"><a href="#DropWizard" class="headerlink" title="DropWizard"></a><strong>DropWizard</strong></h4><p>维护所有 Metric 的集合，在 DropWizard 中表现为 <code>MetricSet</code>。</p>
+<p>核心是使用了 <code>private final ConcurrentMap&lt;String, Metric&gt; metrics</code> 维护所有的 Metric，key 是 metric 的 tag 或者 name</p>
+<ol>
+<li>提供了 <code>MetricRegistryListener</code>，目的是为了在子 registry 增加注册 metric 时，通知父 registry，同步添加到 registry 的 <code>ConcurrentHashMap</code> 中</li>
+</ol>
+<blockquote>
+<p>特别设计：所有类型的 metric 共同放在一个 map 里。在 get 具体类型的 map 时，用到了 klass 进行类型判断，同时使用 MetricFilter 封装 name 匹配操作</p>
+</blockquote>
+<ol start="2">
+<li><p>提供对下面所有 Metric 的增删改查接口；类似 IoTDB 的 MetricService</p>
+</li>
+<li><p>提供了一些 Util 内部类，比如 MetricBuilder、MetricFilter，用来满足面向对象设计，与性能优化关系不大，暂时按下不表。</p>
+</li>
+<li><p>通常，每个应用程序只需要一个 MetricRegistry 实例，但如果想在特定报告组中组织指标，则可以选择使用更多实例。</p>
+</li>
+</ol>
+<h4 id="Micrometer"><a href="#Micrometer" class="headerlink" title="Micrometer"></a><strong>Micrometer</strong></h4><p>Meter 是收集应用的一系列指标的接口。Meter 是由 MeterRegistry 创建的。每个支持的监控系统都必须实现MeterRegistry。 </p>
+<p>Micrometer 中包含一个 <code>SimpleMeterRegistry</code>，它在内存中维护每个 meter 的最新值，并且不将数据导出到任何地方。这是 Micrometer 最简单的注册表形式。 </p>
+<p>但是，在大多数情况下，Micrometer 有专门为各种监控系统设计的 MeterRegistry：如对于 Promethus 来说，它是 <code>PromethusMeterRegistry</code>。</p>
+<div align="center"><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115143317005.png" alt="image-20231115143317005" style="zoom: 25%;" align="center" /></div>
+
+<p>甚至，我们可以自行继承 MeterRegistry 接口，定制我们需要的 Registry。定制主要出于以下几点考虑：</p>
+<ol>
+<li>重写创建指标组件（Gauge 等）的方法，对于不同的监控场景，自定义创建我们需要的指标组件类型。</li>
+<li>与 Reporter 集成。这样启动 Registry 的同时自动 report，用户无需再特地使用 Report，符合面向对象行为和状态结合的思想。<ol>
+<li>对 IoTDB 意义不大。因为 IoTDB 本来就是单独启动 Reporter 的，并且 IoTDB 的 Reporter 和 Registry 解耦。</li>
+</ol>
+</li>
+</ol>
+<p>Micrometer 还提供一种 <code>CompositeMeterRegistry</code> ，允许添加多个注册表。 它提供了一种将应用程序指标同时发布到各种受支持的监控系统的解决方案。</p>
+<p>IoTDB 原本用的是 <code>globalRegistry</code>（本质上是一个<code>CompositeMeterRegistry</code>），里面套用 <code>SimpleMeterRegistry</code>。实际上可以认为 IoTDB 用的就是 <code>SimpleMeterRegistry</code>。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MDMyYzViODYwMWNiM2MwOTUwZDkxMzExZWMxMDhjOWFfeUFIQm13UXRzZmlpQjI3OTVJSEZ0YVc3Q04waElCOUFfVG9rZW46QTZlMWJvWlhOb0JnZWl4QlpWM2NzTnlubm5nXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p>但是由于 globalRegistry 本质上是 CompositeMeterRegistry，它创建具体的指标项时都是创建 CompositeXXX，CompositeXXX 在具体 api 调用时存在额外的调用开销。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZGIyMmEyMWQ5NmM0MjhjOGNlNTg2ZDRjMTNlNWMzZDZfSW1zUVRyd0FPSUtMZFJvNkx1U1dnYXRIb2EwQkZjckdfVG9rZW46VWZ5bWJqSzVzbzl3QUx4NFNwN2M2YWVBbjdkXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p>咨询 IoTDB Metric 系统的负责大佬 hy 后，得知 IoTDB 使用 CompositeRegistry 的初衷是保留后续为不同 MetricSet 分配不同 Registry 的可能，以提高并发度。</p>
+<p>对于这个问题，考虑到 Registry 的功能仅作为 create 具体的指标项，create 动作本身不具有较高的并发，因此认为可以只有一个 Registry。而将不同 MetricSet 进行存储维度上的不同分配可以通过对 Map 进行更细划分实现。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ODJjZDRmZDZjYjEzM2VkZDgyZWY2ZWUyNmQwZGEzYmVfTFZWaUNTTWRObTBDRE9vYUZhTkxSMjdFWDV4alVMVnRfVG9rZW46WEMwYWJHQjF5b3RuRzR4Q2FHbWNyV2NmbnpjXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p>因此，考虑将 IoTDB 的 MetricRegistry 简化成 SimpleRegistry，减少每次记录指标时多出来的函数调用开销。</p>
+<p><strong>此外，也可以考虑直接删除对 Micrometer Registry 的依赖</strong>（需要重写 JMX Reporter），因为 IoTDB 已经有一套 metrics 的增删改查和命名系统，与 Registry 的功能重复。删掉 Registry 后能对每个 metric 都避免重复的存储动作，节省一倍内存。代码可读性、可维护性也更好。</p>
+<ul>
+<li><strong>最终采用此种方案，详细实施可见后文</strong></li>
+</ul>
+<h3 id="1-1-2-Gauges"><a href="#1-1-2-Gauges" class="headerlink" title="1.1.2. Gauges"></a>1.1.2. Gauges</h3><h4 id="DropWizard-1"><a href="#DropWizard-1" class="headerlink" title="DropWizard"></a><strong>DropWizard</strong></h4><p>DropWizard 中的 gauge 的默认实现使用：<code>DefaultSettableGauge</code></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">MetricBuilder&lt;Gauge&gt; GAUGES = <span class="keyword">new</span> <span class="title class_">MetricBuilder</span>&lt;Gauge&gt;() &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Gauge <span class="title function_">newMetric</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">DefaultSettableGauge</span>&lt;&gt;();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">isInstance</span><span class="params">(Metric metric)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> Gauge.class.isInstance(metric);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>其他类型的 gauge 主要需要关注 <code>CachedGauge</code>，它缓存了 Gauge 中的值，并设置了过期时间。只有当值过期时，才会 reload 值。</p>
+<p>其他的 Gauge 基本都是存取某个对象计算值的方法引用，其效率取决于具体的<code>getValue()</code>方法。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MzE0ZDUxZmMzOGQ0Y2E0OGE4OTEyMjRkMTQ4M2U1NGRfYmRTSFB5eTkzb09TSjVHSXhTcUdsUmNPM05scW9FaVFfVG9rZW46R2dPV2I4bjBkb3NnSUN4NVNUM2NUVkJFbkFkXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<h4 id="Micrometer-1"><a href="#Micrometer-1" class="headerlink" title="Micrometer"></a><strong>Micrometer</strong></h4><p>种类比较多，主要用到的是 <code>DefaultGauge</code> 和 <code>CompositeGauge</code></p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MWFhZjljYTFkNjYyZjYzZDg0N2MxYmMxZjVhOTAyZjJfWWp5MlhtazEwRDV5bWNoTjM2bmlza1FDQ1JiUmVMWFJfVG9rZW46UlprOWJWeUl0b2dsVEJ4U1pscmNQc2lnbjNnXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p>Micrometer 的 gauge 不是将值的计算委托给具体的对象，而是将<strong>获取具体对象和计算值的方法解耦</strong>。如此，gauge 寄存的值不局限于某个对象的某个方法，对象和方法可以解耦，增强了可拓展性。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZTdkYmZhMDBkZDZmMDFjYTJkN2RiYjhlOTYxNDZmNzRfcE5UemZXaWxSNjJLQnBSbDVzNlBTckxza29mWVN2U2tfVG9rZW46UUJOTWJNeG1PbzhlaVh4U2g0NWN6dUlhbnNoXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><strong>至于性能上</strong>，由于 Micrometer 没有提供缓存版 gauge，因此在涉及读密集且重计算的场景时会有性能问题，预期不如 Dropwizard。<strong>考虑在 IoTDB 实现时加一层缓存进行优化。</strong></p>
+<h3 id="1-1-3-Rate"><a href="#1-1-3-Rate" class="headerlink" title="1.1.3. Rate"></a>1.1.3. Rate</h3><h4 id="DropWizard-2"><a href="#DropWizard-2" class="headerlink" title="DropWizard"></a><strong>DropWizard</strong></h4><p>相当于 Meter，用于度量事件响应的平均速率，它表示的是应用程序整个运行生命周期内的总速率（总请求响应量&#x2F;处理请求的总毫秒数，即每秒请求数）。</p>
+<p>除此之外，Meter 还提供了1分钟、5分钟以及15分钟的动态平均响应速率。</p>
+<p>其实现借助了 <code>MovingAverage</code>。</p>
+<h4 id="Micrometer-2"><a href="#Micrometer-2" class="headerlink" title="Micrometer"></a><strong>Micrometer</strong></h4><p>没有找到 Rate 语义的实现。</p>
+<h3 id="1-1-4-Counter"><a href="#1-1-4-Counter" class="headerlink" title="1.1.4. Counter"></a>1.1.4. Counter</h3><p>Counter 是一个常规计数器，用于对某项指标值进行累加或者递减操作。</p>
+<h4 id="DropWizard-3"><a href="#DropWizard-3" class="headerlink" title="DropWizard"></a><strong>DropWizard</strong></h4><p>Counter 本质是一个 <code>java.util.concurrent.atomic.LongAdder</code>，在多线程同时更新计数器的场景下，当并发量较大时，LongAdder 比 AtomicLong 具有更高的吞吐量，当然空间资源消耗也更大一些。</p>
+<h4 id="Micrometer-3"><a href="#Micrometer-3" class="headerlink" title="Micrometer"></a><strong>Micrometer</strong></h4><p>Micrometer 提供了更多种类的 Counter，基本功能都类似 <code>CumulativeCounter</code>，其他 Counter 的主要区别是拓展了一些和监控系统相关的功能，具体使用哪种与 Registry 有关。IoTDB 目前使用的 <code>SimpleMeterRegistry</code> 使 用 <code>CumulativeCounter</code>。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MzFlZjU5NmIzMTFkYTc1NGQ5OTFkZDk2NDI0ODk0NWJfOUltVFVMVzk4R0U5R1AzVDNDdlJyT3VpMURBeklNZDFfVG9rZW46WHBqVmJCa3dsb3B2WmF4dk1mdWNCdXhFbjFjXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p>其与 DropWizard 的实现大同小异，<strong>唯一区别是前者使用</strong> **<code>DoubleAdder</code>**<strong>，后者使用</strong> **<code>LongAdder</code>**<strong>。</strong>但是前者最终接口是 long，因此涉及一些转化开销，double 本身的运算开销也较大。因此 DropWizard 性能更好。</p>
+<p><strong>考虑使用</strong> <strong><code>LongAdder</code></strong> <strong>实现 Counter。</strong></p>
+<h3 id="1-1-5-Histogram-DistributionSummary"><a href="#1-1-5-Histogram-DistributionSummary" class="headerlink" title="1.1.5. Histogram &#x2F; DistributionSummary"></a>1.1.5. Histogram &#x2F; DistributionSummary</h3><h4 id="DropWizard-4"><a href="#DropWizard-4" class="headerlink" title="DropWizard"></a><strong>DropWizard</strong></h4><p>Histogram 反应的是数据流中的值的分布情况。包含最小值、最大值、平均值、中位数、p75、p90、p95、p98、p99以及p999数据分布情况。</p>
+<blockquote>
+<p>节选自参考资料：</p>
+<p>传统 Histogram 计算分位数的方法是先对整个数据集进行排序，然后取排序后的数据集中特定位置的值（比如p99就是取倒序1%位置的值）。这种方式适合于小数据集或者批处理系统，不适用于要求高吞吐量、低延时的服务。</p>
+<p>但这样方式保留全部数据后 sort 的方式明显对内存和运算不友好。因此 Dropwizard 使用了另外的随机性算法。</p>
+</blockquote>
+<p>对于数据量较大，系统对吞吐量、时延要求较大的场景，我们可以采用抽样的方式获取数据。（大意是通过保证概率相等的情况下，仅保留一定量的数据）</p>
+<p>上述这种通过动态地抽取程序运行过程中的能够代表系统真实运行情况的一小部分数据来实现对整个系统运行指标的近似度量，这种方法叫做**<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/29178293">蓄水池算法（reservoir sampling）</a>**。</p>
+<p>DropWizard 中有三种 reservoir，分别简单介绍下：</p>
+<ol>
+<li><strong>UniformReservoir</strong></li>
+</ol>
+<p>内部为<code>DEFAULT_SIZE = 1028</code>的一个数组</p>
+<p>超过大小了则随机丢弃或者不加入：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">update</span><span class="params">(<span class="type">long</span> value)</span> &#123;</span><br><span class="line">    <span class="keyword">final</span> <span class="type">long</span> <span class="variable">c</span> <span class="operator">=</span> count.incrementAndGet();</span><br><span class="line">    <span class="keyword">if</span> (c &lt;= values.length()) &#123;</span><br><span class="line">        values.set((<span class="type">int</span>) c - <span class="number">1</span>, value);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">final</span> <span class="type">long</span> <span class="variable">r</span> <span class="operator">=</span> ThreadLocalRandom.current().nextLong(c);</span><br><span class="line">        <span class="keyword">if</span> (r &lt; values.length()) &#123;</span><br><span class="line">            values.set((<span class="type">int</span>) r, value);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>来源于这篇论文：**<a target="_blank" rel="noopener" href="http://www.cs.umd.edu/~samir/498/vitter.pdf">Vitter’s R</a>**</p>
+<ol start="2">
+<li><strong>SlidingWindowReservoir</strong></li>
+</ol>
+<p>保留最近的 N 个值，N 可以在构造函数指定</p>
+<p>简单的滑动窗口逻辑，可以理解为用一个 ring buffer 来存储数据</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title function_">update</span><span class="params">(<span class="type">long</span> value)</span> &#123;</span><br><span class="line">    measurements[(<span class="type">int</span>) (count++ % measurements.length)] = value;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li><strong>SlidingTimeWindowReservoir</strong></li>
+</ol>
+<p>保留最近 N 秒的数据，N 可以在构造函数指定</p>
+<p>用时间而不是长度来作为滑动窗口的 window size</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">update</span><span class="params">(<span class="type">long</span> value)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (count.incrementAndGet() % TRIM_THRESHOLD == <span class="number">0</span>) &#123;</span><br><span class="line">        trim();</span><br><span class="line">    &#125;</span><br><span class="line">    measurements.put(getTick(), value);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>缺点是如果瞬间流量很大，该数据结构内存不可控（因为短时间内存入大量数据，且这些数据都在 window 内，短期内不会被丢弃），因此还提供了<code>SlidingTimeWindowArrayReservoir</code>这个替代的基础结构。</p>
+<ol start="4">
+<li><strong>ExponentiallyDecayingReservoir</strong></li>
+</ol>
+<p><code>MetericRegistry::histogram</code>默认创建为该类型，内部为<code>DEFAULT_SIZE = 1028</code>的一个跳表</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">MetricBuilder&lt;Histogram&gt; HISTOGRAMS = <span class="keyword">new</span> <span class="title class_">MetricBuilder</span>&lt;Histogram&gt;() &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Histogram <span class="title function_">newMetric</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">Histogram</span>(<span class="keyword">new</span> <span class="title class_">ExponentiallyDecayingReservoir</span>());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">isInstance</span><span class="params">(Metric metric)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> Histogram.class.isInstance(metric);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>它基于指数级别的抽样算法，根据更新时间与开始时间的差值转化为权重值，权重越大数据被保留的几率越大。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Adds an old value with a fixed timestamp to the reservoir.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> value     the value to be added</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> timestamp the epoch timestamp of &#123;<span class="doctag">@code</span> value&#125; in seconds</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">update</span><span class="params">(<span class="type">long</span> value, <span class="type">long</span> timestamp)</span> &#123;</span><br><span class="line">        rescaleIfNeeded();</span><br><span class="line">        lockForRegularUsage();</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">final</span> <span class="type">double</span> <span class="variable">itemWeight</span> <span class="operator">=</span> weight(timestamp - startTime);</span><br><span class="line">            <span class="keyword">final</span> <span class="type">WeightedSample</span> <span class="variable">sample</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">WeightedSample</span>(value, itemWeight);</span><br><span class="line">            <span class="keyword">final</span> <span class="type">double</span> <span class="variable">priority</span> <span class="operator">=</span> itemWeight / ThreadLocalRandom.current().nextDouble();</span><br><span class="line"></span><br><span class="line">            <span class="keyword">final</span> <span class="type">long</span> <span class="variable">newCount</span> <span class="operator">=</span> count.incrementAndGet();</span><br><span class="line">            <span class="keyword">if</span> (newCount &lt;= size || values.isEmpty()) &#123;</span><br><span class="line">                values.put(priority, sample);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="type">Double</span> <span class="variable">first</span> <span class="operator">=</span> values.firstKey();</span><br><span class="line">                <span class="keyword">if</span> (first &lt; priority &amp;&amp; values.putIfAbsent(priority, sample) == <span class="literal">null</span>) &#123;</span><br><span class="line">                    <span class="comment">// ensure we always remove an item</span></span><br><span class="line">                    <span class="keyword">while</span> (values.remove(first) == <span class="literal">null</span>) &#123;</span><br><span class="line">                        first = values.firstKey();</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            unlockForRegularUsage();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>具体来说，<code>ExponentiallyDecayingReservoir</code> 会定期执行重定标（rescale）操作，以清理旧数据并降低数据的权重，从而达到淘汰数据的目的。</p>
+<p>Rescale 的大致过程是：基于指数衰减公式 <code>exp(-alpha * (startTime - oldStartTime))</code>计算缩放因子，如果缩放因子等于零，说明时间差距太大，直接清空所有的样本数据；否则，遍历所有样本数据，根据缩放因子将每个样本的权重进行缩放，然后将缩放后的样本数据重新插入到数据结构中。</p>
+<p>来源于这篇论文：**<a target="_blank" rel="noopener" href="http://dimacs.rutgers.edu/~graham/pubs/papers/fwddecay.pdf">forward-decaying priority reservoir</a>**</p>
+<h4 id="Micrometer-4"><a href="#Micrometer-4" class="headerlink" title="Micrometer"></a><strong>Micrometer</strong></h4><p>Micrometer 拥有 Histogram 类，然而 IoTDB 使用的是 Micrometer 的 DistributionSummary。</p>
+<ol>
+<li><strong>Histogram 和 DistributionSummary 有什么功能区别？</strong></li>
+</ol>
+<p>实际代码可以看出：Histogram 在 Micrometer 中是作为一种基础组件，而不是一种监控指标。DistributionSummary 集成了 Histogram</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NTZkYTk4OTljYjNjYzc1MmNmNzYxZTZmYjNiOTFkM2RfRWhPWTZFR1AwUmZtOXUzVXpWNDJRYkNqVnljSDUzd0dfVG9rZW46V3UwcWJ2R2oyb2FMNVN4R1JqVWN0RmNkbnBlXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p>因此使用 DistributionSummary 即可。</p>
+<ol start="2">
+<li><strong>DistributionSummary 是怎么实现的？</strong></li>
+</ol>
+<p>根据官网我们知道：DistributionSummary 跟 Timer 的实现结构几乎完全一样，只不过记录的不是 time unit 的值。因此可以参考本文 1.2.5 节。</p>
+<p>值得一提的是，Micrometer 的实现借助了 <a target="_blank" rel="noopener" href="https://github.com/HdrHistogram/HdrHistogram">HdrHistogram</a> 这款开源 histogram 库，后文会详细介绍。</p>
+<h4 id="HdrHistogram"><a href="#HdrHistogram" class="headerlink" title="HdrHistogram"></a>HdrHistogram</h4><p>HdrHistogram 是一款高性能、高精度 histogram 库。在 Micrometer 的 Histogram 中使用了 HdrHistogram 作为 baseline。</p>
+<h5 id="1-Micrometer-是怎么使用-HdrHistogram-的？"><a href="#1-Micrometer-是怎么使用-HdrHistogram-的？" class="headerlink" title="1.  Micrometer 是怎么使用 HdrHistogram 的？"></a>1.  Micrometer 是怎么使用 HdrHistogram 的？</h5><p>Micrometer 的 Histogram 分为 Abstract 基类和实现类。基类实现了写路径、淘汰旧数据等基本逻辑；实现类实现了读、记录新数据等 api。</p>
+<ul>
+<li>实现类：实际上就是 wrap 了 HdrHistogram 的 DoubleHistogram，在读路径中用到，作为暴露给外界的结果变量使用。</li>
+</ul>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OGE3OGIyOWJkNGU5NWIwOGM3NzA2Yjc3NzFmYjBkZDlfc0RWM1o3cHdYVFdSOXN5djVqRmFrZzV3MnlyUm1rVTlfVG9rZW46SW04UmIyZDlTb0E5WHV4R1U3dWM4RXVubjZmXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<ul>
+<li>基类：有一个 ringBuffer，ringBuffer 的每一项都是一个 Histogram。写路径更新 ringBuffer（下一节将详细描述）， 有一个函数在 takeSnapshot 时把 <code>ringBuffer[currentBucket]</code> 的值 copy 给实现类的 <code>intervalHistogram</code>（见上图），并做后续处理。</li>
+</ul>
+<h5 id="2-Micrometer-是如何结合-HdrHistogram-实现淘汰旧数据的？"><a href="#2-Micrometer-是如何结合-HdrHistogram-实现淘汰旧数据的？" class="headerlink" title="2. Micrometer 是如何结合 HdrHistogram 实现淘汰旧数据的？"></a>2. <strong>Micrometer 是如何结合 HdrHistogram 实现淘汰旧数据的？</strong></h5><ul>
+<li>首先，Micrometer 用一个 ringBuffer 来存储数据。ringBuffer 的每一项就是一个 HdrHistogram（<code>org.HdrHistogram.DoubleRecorder</code>）</li>
+<li>当导出 Snapshot 的时候，用到的是 <code>currrentBucket</code> 指针指向的 buffer。</li>
+</ul>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZWY2N2IwNGNlZWQwNGM0ZTVhZWFhMDNjYWRlMDliOWJfV0RoZkNqR001RW5DYW9pRGdGVTJiVTVFWEphaXBXekNfVG9rZW46WDc1SGJ6MUVvb280Mmt4alYybmNDQ1I0bmpYXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<ul>
+<li>Micrometer 每次插入数据的时候，会往 ringBuffer 中的所有 buffer 插入数据（后文会解释「为什么要向所有的 buffer 插入数据」）</li>
+</ul>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=YTk3ZGI5M2IwZmU3YzE4ZDAyYWQzOTc1N2Y2Mzg3M2RfWGlJYURGakxhWGN1WEVkaXR5RVlXVnRmN21kdUUyN3dfVG9rZW46UkxITGJoZE5Rb04wN094MERlSGMwN2wybmpkXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<ul>
+<li>Micrometer 在每次插入新数据前，会调用 <code>rotate()</code> 方法。</li>
+</ul>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZjIwYmU1OTEyMjFiOWMwYzU1NDAzN2RkMzRmYWQ4OWNfS0YyWTJpODdHek9Qcjd3VnRlM29NTUdwaXpQTmhmYzFfVG9rZW46QmRvWGIwTEJNb01icmV4WUpzd2NicHRrblNmXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<ul>
+<li><p><strong>rotate() 方法实现了淘汰旧数据</strong>。逻辑如下：</p>
+</li>
+<li><p>如果上一次淘汰数据到现在的累积时间超过了阈值（该阈值可以通过 config 设置，即 IoTDB metric core 代码里设置的 expiry，默认 1 分钟），那么即实行淘汰策略：reset（清空）  <code>currrentBucket</code> 指向的 buffer，并将 buffer 指针（ <code>currrentBucket</code> ）后移。</p>
+</li>
+<li><p>之后新数据到来时，Micrometer 会向 ringBuffer 中的所有 buffer 插入新数据。但由于某些 buffer 已经被清空过了，因此它们就会只保存后面插入的新数据</p>
+</li>
+<li><p>由于 Micrometer 真正用到的 histogram 是 <code>currrentBucket</code> 指针指向的 buffer，而每次 rotate 会将 <code>currrentBucket</code> 指针后移，因此相当于不断给予保存新数据 buffer 更高的权重。</p>
+</li>
+<li><p>综上，如此就巧妙的达到了淘汰旧数据的目标。可以看出：相比于 DropWizard 每次淘汰旧数据时对跳表的复杂操作，Micrometer 的 rotate 开销不大，再配合 HdrHistogram 本身静态分桶的高写入速度（后文会提到），Micrometer 就实现了比 DropWizard 更好的（写）性能。</p>
+</li>
+</ul>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZTFhZDRjOGQ3NGMyZGNhZjc4NjM0YTA3MTBhZGU2ODVfbXl2dUJYRGRWYWFkTmxQd2ZSQWlFRDdzQm1FUlJUcThfVG9rZW46VXV4SWJYVjlZb3REOUd4ZlJDdWN6WWVublNxXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<ul>
+<li><strong>可优化点思考：</strong>从前面分析可以看到，Micrometer 在每次写入数据时，对 ringBuffer 的所有 bucket 都进行了写入操作。那么是否可以通过缩小 ringBuffer 的 size，从而减少写 bucket 次数，来提高 Micrometer Histogram 的写入效率？需要研究下 ringBuffer.length 的设置原理。<ul>
+<li>ringBuffer.length 默认设置为 3。根据上文，只要保证 ringBuffer.length 大于 1 既能保证淘汰旧数据的目的。因此考虑将 ringBuffer.length 设为 2（<strong>PR</strong>: <a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/pull/11500%EF%BC%89">https://github.com/apache/iotdb/pull/11500）</a></li>
+</ul>
+</li>
+</ul>
+<h5 id="3-HdrHistogram-的设计思路和算法有哪些？"><a href="#3-HdrHistogram-的设计思路和算法有哪些？" class="headerlink" title="3. HdrHistogram 的设计思路和算法有哪些？"></a>3. <strong>HdrHistogram 的设计思路和算法有哪些？</strong></h5><p>不同于前文提到 DropWizard 使用的随机性算法实现（淘汰旧数据），HdrHistogram 使用的是<strong>确定性算法</strong>。</p>
+<p>确定性算法本质上就是静态分桶，有点类似压缩存储的思想。<strong>用容器将所有遇到的数据全部保存起来</strong>，<strong>实际上不需要将每个值都存下来，但结果也不是精确解。</strong>以达到 Histogram 所需要的计算分位数等功能。但 HdrHistogram 不是一个数字一个桶，而是一个区间一个桶。该区间的范围可以是线性增长，也可指数增长。<strong>通过一个区间分一个桶</strong>的方式， 就能通过牺牲一小部分精度，从而达到减小空间占用，并且数据大致准确的结果。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NDlhYjI5OGEyODhiZjk1YjVlMTIxMDJiM2Q4Y2E1YTZfaWZVazhxNUdmUXp0RGNlZUR3OVJISU5heFNGclZRclRfVG9rZW46RGtWSGJwckwxbzhOa1J4d1lPQ2NRY3dwbnhlXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<h5 id="4-HdrHistogram-具体是如何分割区间的？"><a href="#4-HdrHistogram-具体是如何分割区间的？" class="headerlink" title="4. HdrHistogram 具体是如何分割区间的？"></a>4. <strong>HdrHistogram 具体是如何分割区间的？</strong></h5><p>前面提到，HdrHistogram 不是一个数字一个桶，而是一个区间一个桶。该区间的范围可以是线性增长，也可指数增长。现在假设有值域为 [0..R] 的区间</p>
+<ul>
+<li>对于线性分桶：也就是对于 0..R 如果用 B 分隔， 那么总共可以分隔 R&#x2F;B 个格子，数组的size也是 R&#x2F;B</li>
+<li>对于指数分桶，也就是基于指数分隔（2 的幂次），第一个桶有 2^0 个数，第二个桶有 2^1 个数… 第 n 个桶有 2^(n-1) 个数。</li>
+</ul>
+<p>举个例子，比如 10w 个数字：</p>
+<p>采用线性的分桶方法，假设每个 bucket 可以表示100个值，那么需要 1000 个 buckets, : <code>[1..100][101..200]...[99,901..100,000]</code></p>
+<p>采用指数的分桶方式，只需要 17 个 buckets， <code>[2^K..(2^(K+1)-1)]</code> e.g. <code>[1..1][2..3][4..7]...[65,536..131,071]</code></p>
+<p>这里 HdrHistogram 用了一个 trick：</p>
+<p>对于分隔 buckets，HdrHistogram 同时采用了线性和指数，HdrHistogram 内部有2个 index，<code>bucketsIdx</code> 和 <code>subBucketIndex</code>. 前者是指数的，后者是线性的。可以根据业务精度需求控制后面的线性的大小。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OTNlZWIyYzk2NWQ3OWI0NTkwMmFiNmRkZDQzNmY2OThfWFphdDgzQ041bklpcTJSMFFSMm9GVGl5V0MydGJJaGpfVG9rZW46QVExaGJ2Snkzb0NPdU54YkFNN2NqV2QxbnljXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p>首先，所谓「分桶」就是一个 long 数组。数组的每一项就是一个桶，其意义是：统计某个区间内数据出现的次数。分桶策略决定了数组的每一项统计的区间范围是多少。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MjBmZGI5NjA4OGIyZWFjM2Q0MGY1NDhkMTdlY2UyNzlfelIzdFlSd0NFcTc0ckI2eVVQVzYydmVLaHI3NW4wVHpfVG9rZW46SlpqTmJ4OGtzb05tc3d4cGMyOWNoTXRibjNCXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p>具体来说，HdrHistogram 的分桶策略是<strong>指数和线性结合</strong>：</p>
+<p>HdrHistogram 先将需要统计的总区间通过 2 的幂次指数分成 n 个桶<em>（如果区间长度为 l，即保证 2^(n-1) &gt;&#x3D; l）</em>，此时标识这些桶的 index 就叫 <code>bucketIndex</code>。而每个桶又分为 <code>subBucketCount</code> 个子桶（<code>subBucketCount</code> 是可间接配置的），这些子桶的下标就叫做 <code>subBucketIndex</code>。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=YTFjOGYxYzQwMDNiOTUyOTFhMThkODI4OTdjMDc5NTJfTG9JdFRjdGZIQXZ3MmJ6eVRuQUVRSlhYZGFJYUFtdUJfVG9rZW46SEJGTGJrN1lzb2dnZEl4MVUweGN1em9Dbm5lXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><strong>举个例子，</strong>每个桶有 <code>subBucketCount</code> 个子桶，这里假设为 2048 ，那么第 1 个桶可以以 2^0 的精度表示 2^0 * 0 ~ 2^0 * 2048，即第 1 个桶可以覆盖区间 [0, 2048]，且每个子桶可以覆盖 1 个值（精度是 2^0 &#x3D; 1）。</p>
+<p>这里就有一个<strong>「桶重叠」(bucket overlap)</strong> 的问题。首先我们给出结论：</p>
+<ul>
+<li>第 0 个桶以 2^0 &#x3D; 1 的精度覆盖 0…2047，使用所有 2048 个子桶</li>
+<li>第 1 个桶以 2^1 &#x3D; 2 的精度，理论上能覆盖 0… 4095，但仅使用顶部 1024 个子桶，实际上覆盖 2048..4095</li>
+<li>第 2 个桶以 2^2 &#x3D; 4 的精度，理论上能覆盖 0… 8191，但仅使用顶部 1024 个子桶，实际上覆盖 4096..8191</li>
+</ul>
+<p>为什么 Bucket 0 是唯一使用 2048 个子桶的，而其余桶都只使用 1024 个子桶呢？</p>
+<ul>
+<li>因为它们的下半部分与前面所有的存储桶重叠并且已经被覆盖：<ul>
+<li>举个例子，第 k 个桶可以以 2^k 精度表示 2048 个子桶，覆盖区间为 0 * 2^k 到 2048 * 2^k</li>
+<li>但是第 k 个桶的中点：1024 * 2^k &#x3D; 2048 * 2^(k-1) &#x3D; 第 k-1 个存储桶的末尾，因此我们将使用前一个存储桶（第 k-1 个桶）来存储第 k 个桶起点 ～ 第 k 个桶中点的值，<strong>因为它具有更好的精度（即子桶存储的区间范围更小）</strong>。</li>
+</ul>
+</li>
+</ul>
+<p>那么当一个数据被插入，实际计算其下标时，就是结合上述分桶原理，计算它所在的桶（bucketIndex）和子桶（subBucketIndex），二者经过一些简单组合运算后得到最终下标，可以参考代码：</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OTQ2NjM3OWYxNTRmMzVjZTcyYjYzNWMzYjNjZGZlMjdfeXJNbjA1RWFucTJSWWlSRUFsaEtPNmgxTE94TnJWcGFfVG9rZW46Tzh0eGJZNE40b3ZqcWt4ZE0xbmNJRGwxbjVmXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><strong>这样分桶的好处是：</strong></p>
+<ul>
+<li>如果纯线性分桶，那么显然空间占用过大；如果纯指数分桶，又会有精度的问题。二者结合，可以较好的解决线性分桶空间占用的问题，一定程度上优化指数分桶精度的问题。整个分桶思想有点类似压缩存储，将所有数据保存起来，但是不保存具体的值。在舍弃一点精度的情况下省下大量内存。</li>
+<li>前文提到，<code>subBucketCount</code> 是可配置的。因此我们可以根据业务精度需求，控制线性分桶的精度大小，比较灵活。（线性分桶数越大，精度越大，所占内存越大）<ul>
+<li>这也就是 Histogram 构造函数第二个参数的含义：它与 <code>subBucketCount</code> 有关。<ul>
+<li><p>该参数与 <code>subBucketCount</code> 的转换逻辑如下</p>
+</li>
+<li><pre><code class="Java">static int numberOfSubBuckets(final int numberOfSignificantValueDigits) &#123;
+    final long largestValueWithSingleUnitResolution = 2 * (long) Math.pow(10, numberOfSignificantValueDigits);
+
+    // We need to maintain power-of-two subBucketCount (for clean direct indexing) that is large enough to
+    // provide unit resolution to at least largestValueWithSingleUnitResolution. So figure out
+    // largestValueWithSingleUnitResolution&#39;s nearest power-of-two (rounded up), and use that:
+    int subBucketCountMagnitude = (int) Math.ceil(Math.log(largestValueWithSingleUnitResolution)/Math.log(2));
+    int subBucketCount = (int) Math.pow(2, subBucketCountMagnitude);
+    return subBucketCount;
+&#125;
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">- 该参数值域为 0-5，分别对应 `subBucketCount` 为：</span><br><span class="line">- ```Plain</span><br><span class="line">  0 - 2</span><br><span class="line">  1 - 32</span><br><span class="line">  2 - 256</span><br><span class="line">  3 - 2048</span><br><span class="line">  4 - 32768</span><br><span class="line">  5 - 262144</span><br></pre></td></tr></table></figure>
+</code></pre>
+</li>
+<li><p>该参数 IoTDB metric core 里默认配置的是 1（值域为 0 - 5，数字越大，<code>subBucketCount</code> 越大），最终会导致 <code>subBucketCount</code> 为 32</p>
+</li>
+</ul>
+</li>
+<li><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NGJhOGYyMzEyOTc4NDk3YWViNTY0ZTcwYjhkYTE5ZDZfNlAxMnpTUmpFbUhNMmU4WjZuQzRkZ09WNkx1Sk9wU1FfVG9rZW46WmRmWGIyMk9ob25tVGZ4ZGE0QWNhQ2tIbm1lXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></li>
+</ul>
+</li>
+</ul>
+<h5 id="5-HdrHistogram-的-resize-机制"><a href="#5-HdrHistogram-的-resize-机制" class="headerlink" title="5. HdrHistogram 的 resize 机制"></a>5. <strong>HdrHistogram 的 resize 机制</strong></h5><p>当然以上都有个缺点，需要一个可预估的最大值（可以理解为 HdrHistogram 统计区间的最大值）。如果有超过最大值的数字（即数据大小超过了 HdrHistogram 的统计区间）</p>
+<ol>
+<li>如果没有设置 <code>autoResize</code>，将抛出异常，存入失败。</li>
+<li>如果设置了 <code>autoResize</code>，将 resize 区间（重新设置区间范围并重新分桶）</li>
+<li>默认 <code>autoSize</code> 为 true</li>
+</ol>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OTgzMTE2Yzk1NDA5YjUxYWVhZTJkMjFjNGM0NWY0YmZfYWFUcFpqZHd4eWVFbzRRcncyZjFvQ3RnT3I5MzUxQVpfVG9rZW46RTByNGJyQXVzb0hHUmV4OXBWa2NtU2I1bmNjXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<ul>
+<li><code>autoResize</code> 是 Histogram 类里面的一个可设置参数</li>
+</ul>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OWQxOGFiNjk1ZWQwOWU0MTEyMGM0NzQ4YjJmNDY1OGJfR2lBc1ExZzR3bjM2UDh5eXJVbjlCNU95bGhoYk1uOFpfVG9rZW46QUhqc2JHOGZKb3k1UXh4NXFOTWNyVWEzbklkXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<h5 id="6-HdrHistogram-如何确定统计区间的上下界？"><a href="#6-HdrHistogram-如何确定统计区间的上下界？" class="headerlink" title="6. HdrHistogram 如何确定统计区间的上下界？"></a>6. <strong>HdrHistogram 如何确定统计区间的上下界？</strong></h5><p>答案：通过构造函数设定。</p>
+<p>可以清晰的看到 Histogram 类的构造函数参数含义</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=M2Q1NzdlODlmMzQxNDFhMzkxNTQxZmYzMDQ3NWQ1M2ZfbHZvUzA3VFNHbDg4UUtubzR5VThGQkMxbkc4QzVkSG5fVG9rZW46TFVUa2JuWTd0bzdXN3Z4dnV0M2NKemhVblRlXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p>但 Micrometer（IoTDB）中不是直接调用该构造函数，跟进发现调用的构造函数是：</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=YzE3MmEzNTFiODdkZDg0ZmRiMGEyZWI3Zjc4ZjBmNDJfZlZ2ME90NWNDWDZpTkJMOWNUZUxHMjRVdEUyVmJjTlNfVG9rZW46TzI3MGJlUGxlb0dwYjJ4c2tYYWNSeHo2bmNuXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p>其中，<code>highestToLowestValueRatio</code> 和 <code>numberOfSignificantValueDigits</code> 共同确定了 hdrHistogram 的上下界。跟进发现最终上下界为 <strong>[1, 127]</strong></p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OTYxN2ZkOTEyYTlkMjVhNWYzYjI2ZWJkZTUxZmJiMGJfTmxONHB3Y1ZJU2xGdTdaTmZwQURKVGZuZGREd3ZXRmhfVG9rZW46TkpKZGJqU2lpb0RhZ0x4RDAxYmMxbEY1bjRjXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<ul>
+<li><strong>可优化点思考：</strong>从前面分析可以看到，当数据超过 hdrHistogram 范围时，会发生 resize，该操作有时间开销。目前的上下界 [1, 127] 显然范围有点小了，在大值数据场景下显然要 resize，甚至多次 resize。我们是否可以对每一个 timer&#x2F;histogram 的使用场景预估数据区间，为每一个 timer&#x2F;histogram 定制数据上下界，尽量避免 resize 操作。<ul>
+<li>由于 Micrometer 没有暴露定制化 hdrHistogram 区间范围的 API，该改动阻塞。已向他们提 issue（<a target="_blank" rel="noopener" href="https://github.com/micrometer-metrics/micrometer/issues/4327%EF%BC%89">https://github.com/micrometer-metrics/micrometer/issues/4327）</a></li>
+</ul>
+</li>
+</ul>
+<h5 id="7-HdrHistogram-和-DropWizard-优劣分析"><a href="#7-HdrHistogram-和-DropWizard-优劣分析" class="headerlink" title="7. HdrHistogram 和 DropWizard 优劣分析"></a>7. <strong>HdrHistogram 和 DropWizard 优劣分析</strong></h5><ul>
+<li>写入速度：Hdr 远优于 DropWizard<ul>
+<li>正是因为 HdrHistogram 是静态分桶实现，所以写入友好（不需要淘汰旧数据），在<a target="_blank" rel="noopener" href="https://apache-iotdb.feishu.cn/docx/P5svdKZTxoVtqax0mgvcCeYInQe#OglwdZfPEoTKbmx11ywcLMS5nhf"> record</a> 性能测试中比 DropWizard 表现要好。</li>
+<li>HdrHistogram 底层是数组，而 DropWizard 底层是跳表，数组肯定比跳表写入快。</li>
+<li>DropWizard 默认设置是每隔一段时间要 rescale 一下，而 rescale 是要锁写的。</li>
+</ul>
+</li>
+<li>读取速度：二者差不多<ul>
+<li>因为都是给定了分位数，相当于给定数组下标&#x2F;跳表 key 了，直接读取基本都是 O(1)</li>
+</ul>
+</li>
+<li>空间占用：需要具体分析。因为 HdrHistogram 可以通过指数分桶减少空间占用，而 DropWizard 的空间占用也和用户指定的容器大小有关，所以直观上不太好说谁空间占用更好，需要结合具体场景分析。</li>
+</ul>
+<h3 id="1-1-6-Timer"><a href="#1-1-6-Timer" class="headerlink" title="1.1.6. Timer"></a>1.1.6. Timer</h3><h4 id="DropWizard-5"><a href="#DropWizard-5" class="headerlink" title="DropWizard"></a><strong>DropWizard</strong></h4><p>Timer 相当于 Meter + Histogram（默认使用 <code>ExponentiallyDecayingReservoir</code>）。可以统计接口请求速率和响应时长。会度量服务的响应速率，同时也会统计服务响应时长的分布情况。</p>
+<blockquote>
+<p>可以说，Timer 能兼容 Meter + Histogram 的所有接口。</p>
+</blockquote>
+<p>因此 Timer 底层的 update 主要也就是更新 Histogram 和 Meter。</p>
+<h4 id="Micrometer-5"><a href="#Micrometer-5" class="headerlink" title="Micrometer"></a><strong>Micrometer</strong></h4><p>Timer 用于度量短时间内的事件时延和响应频率。所有的 Timer 实现都记录了事件响应总耗时和事件总数。Timer 不支持负数，此外如果使用它来记录大批量、长时延事件的话，容易导致指标值数据越界（超过<code>Long.MAX_VALUE</code>）。</p>
+<p>同样，Micrometer 为每种监控系统设计了不同的 Timer，主要用的是 <code>CumulativeTimer</code>。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZjMyYWIzZmVjODNmZjM1NmMzNDU2N2I0ZDM5MGI2ZTJfTnJFV3VtNGwwbFBLb09RdVViOTc3Y1c4N1FleVpQVlNfVG9rZW46WVlROGI1OWl1b3VwcmZ4b1h5ZWN3d3plblloXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p>Micrometer 的 Timer 相当于 Histogram + 自己实现的计时器（用 AtomicLong 累计 nanoTime 等）。每次 Record 时会更新 Histogram 并更新自己实现的计时器。</p>
+<h2 id="1-2-Reporter"><a href="#1-2-Reporter" class="headerlink" title="1.2. Reporter"></a>1.2. Reporter</h2><p>用于将 metric 指标数据导出到具体的某个介质。</p>
+<p>IoTDB 主要使用了 IoTDBReporter、PrometheusReporter、JMXReporter 三种。因此本文主要探究 DropWizard 中对应的 InfluxDBReporter、GraphiteReporter、JMXReporter 三种 Reporter</p>
+<h3 id="1-2-1-InfluxDBReporter"><a href="#1-2-1-InfluxDBReporter" class="headerlink" title="1.2.1. InfluxDBReporter"></a>1.2.1. InfluxDBReporter</h3><ul>
+<li><strong>设计思想：</strong> InfluxDB 报告器的设计思想是将度量数据发送到 InfluxDB，以便进行高性能的存储和查询。</li>
+<li><strong>具体实现：</strong> InfluxDB 报告器使用 HTTP 协议将度量数据发送到 InfluxDB 服务器。它将度量名称、值和标签（tags）映射到 InfluxDB 中的数据点，并将其存储在数据库中。</li>
+</ul>
+<h3 id="1-2-2-GraphiteReporter"><a href="#1-2-2-GraphiteReporter" class="headerlink" title="1.2.2. GraphiteReporter"></a>1.2.2. GraphiteReporter</h3><ul>
+<li><strong>设计思想：</strong> Graphite报告器的设计思想是将度量数据发送到Graphite，一个可扩展的度量数据存储和可视化工具，以便长期存储和绘制度量图表。</li>
+<li><strong>具体实现：</strong> Graphite报告器使用TCP或UDP协议将度量数据发送到Graphite服务器。它将度量名称和值映射到Graphite中的度量路径，并定期将数据发送到服务器。</li>
+</ul>
+<h3 id="1-2-3-JMXReporter"><a href="#1-2-3-JMXReporter" class="headerlink" title="1.2.3. JMXReporter"></a>1.2.3. JMXReporter</h3><ul>
+<li><strong>设计思想：</strong> 将 Metric 注册为 MBean，随后将度量数据以Java管理扩展（JMX）的方式导出，以便通过JMX客户端监视和管理应用程序。</li>
+<li><strong>具体实现：</strong> 将度量数据注册到JMX服务器中，然后可以使用JMX客户端连接到服务器，查看和管理度量数据。实现了 JMXListener（本质上也是个 MetricRegistry，监听主 Registry）<ul>
+<li>每次 registry 创建了一个 metric 对象后，在 JMX 中深 clone 一份 JMXMetric，并将其注册为 MBean</li>
+</ul>
+</li>
+</ul>
+<h1 id="2-性能测试"><a href="#2-性能测试" class="headerlink" title="2. 性能测试"></a>2. 性能测试</h1><p>本节主要目的是全面测试对比 Micrometer 和 DropWizard 的性能优劣，从而在算法库参数上做出取舍。</p>
+<p>By JMH benchmark</p>
+<h2 id="2-1-Counter"><a href="#2-1-Counter" class="headerlink" title="2.1. Counter"></a>2.1. Counter</h2><p><strong>测试代码：</strong></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> com.codahale.metrics.MetricRegistry;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.core.instrument.Counter;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.core.instrument.MeterRegistry;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.core.instrument.dropwizard.DropwizardCounter;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.prometheus.PrometheusConfig;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.prometheus.PrometheusMeterRegistry;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.annotations.*;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.runner.Runner;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.runner.RunnerException;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.runner.options.Options;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.runner.options.OptionsBuilder;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.TimeUnit;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 指定 Benchmark，测试多线程性能</span></span><br><span class="line"><span class="meta">@State(Scope.Benchmark)</span></span><br><span class="line"><span class="meta">@OutputTimeUnit(TimeUnit.NANOSECONDS)</span></span><br><span class="line"><span class="meta">@BenchmarkMode(Mode.AverageTime)</span></span><br><span class="line"><span class="meta">@Warmup(iterations = 1)</span></span><br><span class="line"><span class="meta">@Measurement(iterations = 2)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">CounterBenchmark</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> RunnerException &#123;</span><br><span class="line">        <span class="type">Options</span> <span class="variable">opt</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">OptionsBuilder</span>()</span><br><span class="line">            .include(CounterBenchmark.class.getSimpleName())</span><br><span class="line">            .build();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">Runner</span>(opt).run();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> MeterRegistry micrometerRegistry;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> MetricRegistry dropwizardRegistry;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> Counter micrometerCounter;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> com.codahale.metrics.Counter dropwizardCounter;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Setup</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setup</span><span class="params">()</span> &#123;</span><br><span class="line">        micrometerRegistry = <span class="keyword">new</span> <span class="title class_">SimpleMeterRegistry</span>();;</span><br><span class="line">        micrometerCounter = micrometerRegistry.counter(<span class="string">&quot;micrometerCounter&quot;</span>);</span><br><span class="line"></span><br><span class="line">        dropwizardRegistry = <span class="keyword">new</span> <span class="title class_">MetricRegistry</span>();</span><br><span class="line">        dropwizardCounter = dropwizardRegistry.counter(<span class="string">&quot;dropwizardCounter&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Benchmark</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">dropwizardCountSum</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">100</span>; i++) &#123;</span><br><span class="line">            dropwizardCounter.inc();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Benchmark</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">micrometerCountSum</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">100</span>; i++) &#123;</span><br><span class="line">            micrometerCounter.increment();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>测试结果：</strong></p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">&gt; Task :micrometer-benchmarks-core:CounterBenchmark.main()</span><br><span class="line"><span class="comment"># JMH version: 1.37</span></span><br><span class="line"><span class="comment"># VM version: JDK 17.0.8.1, OpenJDK 64-Bit Server VM, 17.0.8.1+8-LTS</span></span><br><span class="line"><span class="comment"># VM invoker: /Users/pengjunzhi/Library/Java/JavaVirtualMachines/corretto-17.0.8.1/Contents/Home/bin/java</span></span><br><span class="line"><span class="comment"># VM options: -Dfile.encoding=UTF-8 -Duser.country=CN -Duser.language=zh -Duser.variant</span></span><br><span class="line"><span class="comment"># Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)</span></span><br><span class="line"><span class="comment"># Warmup: 1 iterations, 10 s each</span></span><br><span class="line"><span class="comment"># Measurement: 2 iterations, 10 s each</span></span><br><span class="line"><span class="comment"># Timeout: 10 min per iteration</span></span><br><span class="line"><span class="comment"># Threads: 1 thread, will synchronize iterations</span></span><br><span class="line"><span class="comment"># Benchmark mode: Average time, time/op</span></span><br><span class="line"><span class="comment"># Benchmark: io.micrometer.benchmark.core.CounterBenchmark.dropwizardCountSum</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 0.00% complete, ETA 00:05:00</span></span><br><span class="line"><span class="comment"># Fork: 1 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 504.794 ns/op</span></span><br><span class="line">Iteration   1: 506.459 ns/op</span><br><span class="line">Iteration   2: 506.261 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 10.00% complete, ETA 00:04:31</span></span><br><span class="line"><span class="comment"># Fork: 2 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 506.972 ns/op</span></span><br><span class="line">Iteration   1: 505.873 ns/op</span><br><span class="line">Iteration   2: 498.922 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 20.00% complete, ETA 00:04:01</span></span><br><span class="line"><span class="comment"># Fork: 3 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 506.325 ns/op</span></span><br><span class="line">Iteration   1: 506.829 ns/op</span><br><span class="line">Iteration   2: 504.362 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 30.00% complete, ETA 00:03:32</span></span><br><span class="line"><span class="comment"># Fork: 4 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 503.179 ns/op</span></span><br><span class="line">Iteration   1: 503.631 ns/op</span><br><span class="line">Iteration   2: 518.545 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 40.00% complete, ETA 00:03:01</span></span><br><span class="line"><span class="comment"># Fork: 5 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 509.092 ns/op</span></span><br><span class="line">Iteration   1: 509.741 ns/op</span><br><span class="line">Iteration   2: 505.743 ns/op</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Result <span class="string">&quot;io.micrometer.benchmark.core.CounterBenchmark.dropwizardCountSum&quot;</span>:</span><br><span class="line">  506.637 ±(99.9%) 7.589 ns/op [Average]</span><br><span class="line">  (min, avg, max) = (498.922, 506.637, 518.545), stdev = 5.020</span><br><span class="line">  CI (99.9%): [499.048, 514.225] (assumes normal distribution)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># JMH version: 1.37</span></span><br><span class="line"><span class="comment"># VM version: JDK 17.0.8.1, OpenJDK 64-Bit Server VM, 17.0.8.1+8-LTS</span></span><br><span class="line"><span class="comment"># VM invoker: /Users/pengjunzhi/Library/Java/JavaVirtualMachines/corretto-17.0.8.1/Contents/Home/bin/java</span></span><br><span class="line"><span class="comment"># VM options: -Dfile.encoding=UTF-8 -Duser.country=CN -Duser.language=zh -Duser.variant</span></span><br><span class="line"><span class="comment"># Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)</span></span><br><span class="line"><span class="comment"># Warmup: 1 iterations, 10 s each</span></span><br><span class="line"><span class="comment"># Measurement: 2 iterations, 10 s each</span></span><br><span class="line"><span class="comment"># Timeout: 10 min per iteration</span></span><br><span class="line"><span class="comment"># Threads: 1 thread, will synchronize iterations</span></span><br><span class="line"><span class="comment"># Benchmark mode: Average time, time/op</span></span><br><span class="line"><span class="comment"># Benchmark: io.micrometer.benchmark.core.CounterBenchmark.micrometerCountSum</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 50.00% complete, ETA 00:02:31</span></span><br><span class="line"><span class="comment"># Fork: 1 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 761.443 ns/op</span></span><br><span class="line">Iteration   1: 750.091 ns/op</span><br><span class="line">Iteration   2: 717.163 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 60.00% complete, ETA 00:02:01</span></span><br><span class="line"><span class="comment"># Fork: 2 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 730.985 ns/op</span></span><br><span class="line">Iteration   1: 786.655 ns/op</span><br><span class="line">Iteration   2: 583.315 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 70.00% complete, ETA 00:01:30</span></span><br><span class="line"><span class="comment"># Fork: 3 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 564.985 ns/op</span></span><br><span class="line">Iteration   1: 567.606 ns/op</span><br><span class="line">Iteration   2: 675.625 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 80.00% complete, ETA 00:01:00</span></span><br><span class="line"><span class="comment"># Fork: 4 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 626.955 ns/op</span></span><br><span class="line">Iteration   1: 560.499 ns/op</span><br><span class="line">Iteration   2: 692.164 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 90.00% complete, ETA 00:00:30</span></span><br><span class="line"><span class="comment"># Fork: 5 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 720.045 ns/op</span></span><br><span class="line">Iteration   1: 733.850 ns/op</span><br><span class="line">Iteration   2: 753.365 ns/op</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Result <span class="string">&quot;io.micrometer.benchmark.core.CounterBenchmark.micrometerCountSum&quot;</span>:</span><br><span class="line">  682.033 ±(99.9%) 125.825 ns/op [Average]</span><br><span class="line">  (min, avg, max) = (560.499, 682.033, 786.655), stdev = 83.225</span><br><span class="line">  CI (99.9%): [556.208, 807.858] (assumes normal distribution)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># Run complete. Total time: 00:05:02</span></span><br><span class="line"></span><br><span class="line">REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on</span><br><span class="line">why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial</span><br><span class="line">experiments, perform baseline and negative tests that provide experimental control, make sure</span><br><span class="line">the benchmarking environment is safe on JVM/OS/HW level, ask <span class="keyword">for</span> reviews from the domain experts.</span><br><span class="line">Do not assume the numbers tell you what you want them to tell.</span><br><span class="line"></span><br><span class="line">NOTE: Current JVM experimentally supports Compiler Blackholes, and they are <span class="keyword">in</span> use. Please exercise</span><br><span class="line">extra caution when trusting the results, look into the generated code to check the benchmark still</span><br><span class="line">works, and <span class="built_in">factor</span> <span class="keyword">in</span> a small probability of new VM bugs. Additionally, <span class="keyword">while</span> comparisons between</span><br><span class="line">different JVMs are already problematic, the performance difference caused by different Blackhole</span><br><span class="line">modes can be very significant. Please make sure you use the consistent Blackhole mode <span class="keyword">for</span> comparisons.</span><br><span class="line"></span><br><span class="line">Benchmark                            Mode  Cnt    Score     Error  Units</span><br><span class="line">CounterBenchmark.dropwizardCountSum  avgt   10  506.637 ±   7.589  ns/op</span><br><span class="line">CounterBenchmark.micrometerCountSum  avgt   10  682.033 ± 125.825  ns/op</span><br></pre></td></tr></table></figure>
+
+<p>结论：Dropwizard 性能优于 Micrometer，比例约为20%</p>
+<h2 id="2-2-Gauge"><a href="#2-2-Gauge" class="headerlink" title="2.2. Gauge"></a>2.2. Gauge</h2><p>二者都是寄存某个对象值，在需要取的时候进行更新。其性能取决于具体的 <code>get()</code> 函数，故此处不做测试。</p>
+<p>PS：DropWizard 使用了 CachedGauge，在计算密集的场景下会拥有更好的性能</p>
+<h2 id="2-3-Histogram"><a href="#2-3-Histogram" class="headerlink" title="2.3. Histogram"></a>2.3. Histogram</h2><p><strong>测试代码：</strong></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> com.codahale.metrics.Histogram;</span><br><span class="line"><span class="keyword">import</span> com.codahale.metrics.MetricRegistry;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.core.instrument.DistributionSummary;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.core.instrument.MeterRegistry;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.core.instrument.Tag;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.core.instrument.Tags;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.core.instrument.simple.SimpleMeterRegistry;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.prometheus.PrometheusConfig;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.prometheus.PrometheusMeterRegistry;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.annotations.*;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.runner.Runner;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.runner.RunnerException;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.runner.options.Options;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.runner.options.OptionsBuilder;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.TimeUnit;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 指定 Benchmark，测试多线程性能</span></span><br><span class="line"><span class="meta">@State(Scope.Benchmark)</span></span><br><span class="line"><span class="meta">@OutputTimeUnit(TimeUnit.NANOSECONDS)</span></span><br><span class="line"><span class="meta">@BenchmarkMode(Mode.AverageTime)</span></span><br><span class="line"><span class="meta">@Warmup(iterations = 1)</span></span><br><span class="line"><span class="meta">@Measurement(iterations = 2)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">HistogramBenchmark</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> RunnerException &#123;</span><br><span class="line">        <span class="type">Options</span> <span class="variable">opt</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">OptionsBuilder</span>()</span><br><span class="line">            .include(HistogramBenchmark.class.getSimpleName())</span><br><span class="line">            .build();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">Runner</span>(opt).run();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> MeterRegistry micrometerRegistry;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> MetricRegistry dropwizardRegistry;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> Histogram dropwizardHistogram;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> DistributionSummary micrometerHistogram;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="type">Tags</span> <span class="variable">tags</span> <span class="operator">=</span> Tags.of(<span class="string">&quot;key&quot;</span>, <span class="string">&quot;value&quot;</span>, <span class="string">&quot;key2&quot;</span>, <span class="string">&quot;value2&quot;</span>, <span class="string">&quot;key3&quot;</span>, <span class="string">&quot;value3&quot;</span>, <span class="string">&quot;key4&quot;</span>, <span class="string">&quot;value4&quot;</span>, <span class="string">&quot;key5&quot;</span>, <span class="string">&quot;value5&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Setup</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setup</span><span class="params">()</span> &#123;</span><br><span class="line">        micrometerRegistry = <span class="keyword">new</span> <span class="title class_">SimpleMeterRegistry</span>();</span><br><span class="line">        micrometerHistogram =</span><br><span class="line">            io.micrometer.core.instrument.DistributionSummary.builder(<span class="string">&quot;micrometerHistogram&quot;</span>)</span><br><span class="line">                .tags(tags)</span><br><span class="line">                .publishPercentiles(<span class="number">0.5</span>, <span class="number">0.99</span>)</span><br><span class="line">                .register(micrometerRegistry);</span><br><span class="line"></span><br><span class="line">        dropwizardRegistry = <span class="keyword">new</span> <span class="title class_">MetricRegistry</span>();</span><br><span class="line">        dropwizardHistogram = dropwizardRegistry.histogram(<span class="string">&quot;dropwizardHistogram&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Benchmark</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">dropwizardRecord</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">100</span>; i++) &#123;</span><br><span class="line">            dropwizardHistogram.update(i);</span><br><span class="line">            dropwizardHistogram.getCount();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Benchmark</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">micrometerRecord</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">100</span>; i++) &#123;</span><br><span class="line">            micrometerHistogram.record(i);</span><br><span class="line">            micrometerHistogram.count();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>测试结果：</strong></p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment"># JMH version: 1.37</span></span><br><span class="line"><span class="comment"># VM version: JDK 17.0.8.1, OpenJDK 64-Bit Server VM, 17.0.8.1+8-LTS</span></span><br><span class="line"><span class="comment"># VM invoker: /Users/pengjunzhi/Library/Java/JavaVirtualMachines/corretto-17.0.8.1/Contents/Home/bin/java</span></span><br><span class="line"><span class="comment"># VM options: -Dfile.encoding=UTF-8 -Duser.country=CN -Duser.language=zh -Duser.variant</span></span><br><span class="line"><span class="comment"># Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)</span></span><br><span class="line"><span class="comment"># Warmup: 1 iterations, 10 s each</span></span><br><span class="line"><span class="comment"># Measurement: 2 iterations, 10 s each</span></span><br><span class="line"><span class="comment"># Timeout: 10 min per iteration</span></span><br><span class="line"><span class="comment"># Threads: 1 thread, will synchronize iterations</span></span><br><span class="line"><span class="comment"># Benchmark mode: Average time, time/op</span></span><br><span class="line"><span class="comment"># Benchmark: io.micrometer.benchmark.core.HistogramBenchmark.dropwizardRecord</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 0.00% complete, ETA 00:05:00</span></span><br><span class="line"><span class="comment"># Fork: 1 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 15:22:52.331 [io.micrometer.benchmark.core.HistogramBenchmark.dropwizardRecord-jmh-worker-1] DEBUG io.micrometer.common.util.internal.logging.InternalLoggerFactory - Using SLF4J as the default logging framework</span></span><br><span class="line">10174.613 ns/op</span><br><span class="line">Iteration   1: 9998.056 ns/op</span><br><span class="line">Iteration   2: 10828.580 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 10.00% complete, ETA 00:04:32</span></span><br><span class="line"><span class="comment"># Fork: 2 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 15:23:22.545 [io.micrometer.benchmark.core.HistogramBenchmark.dropwizardRecord-jmh-worker-1] DEBUG io.micrometer.common.util.internal.logging.InternalLoggerFactory - Using SLF4J as the default logging framework</span></span><br><span class="line">10024.374 ns/op</span><br><span class="line">Iteration   1: 9990.595 ns/op</span><br><span class="line">Iteration   2: 10488.892 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 20.00% complete, ETA 00:04:01</span></span><br><span class="line"><span class="comment"># Fork: 3 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 15:23:52.910 [io.micrometer.benchmark.core.HistogramBenchmark.dropwizardRecord-jmh-worker-1] DEBUG io.micrometer.common.util.internal.logging.InternalLoggerFactory - Using SLF4J as the default logging framework</span></span><br><span class="line">10204.101 ns/op</span><br><span class="line">Iteration   1: 10101.247 ns/op</span><br><span class="line">Iteration   2: 10982.767 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 30.00% complete, ETA 00:03:31</span></span><br><span class="line"><span class="comment"># Fork: 4 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 15:24:23.120 [io.micrometer.benchmark.core.HistogramBenchmark.dropwizardRecord-jmh-worker-1] DEBUG io.micrometer.common.util.internal.logging.InternalLoggerFactory - Using SLF4J as the default logging framework</span></span><br><span class="line">9942.547 ns/op</span><br><span class="line">Iteration   1: 10305.283 ns/op</span><br><span class="line">Iteration   2: 10703.590 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 40.00% complete, ETA 00:03:01</span></span><br><span class="line"><span class="comment"># Fork: 5 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 15:24:53.335 [io.micrometer.benchmark.core.HistogramBenchmark.dropwizardRecord-jmh-worker-1] DEBUG io.micrometer.common.util.internal.logging.InternalLoggerFactory - Using SLF4J as the default logging framework</span></span><br><span class="line">9863.582 ns/op</span><br><span class="line">Iteration   1: 9955.748 ns/op</span><br><span class="line">Iteration   2: 10482.406 ns/op</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Result <span class="string">&quot;io.micrometer.benchmark.core.HistogramBenchmark.dropwizardRecord&quot;</span>:</span><br><span class="line">  10383.716 ±(99.9%) 563.945 ns/op [Average]</span><br><span class="line">  (min, avg, max) = (9955.748, 10383.716, 10982.767), stdev = 373.015</span><br><span class="line">  CI (99.9%): [9819.771, 10947.662] (assumes normal distribution)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># JMH version: 1.37</span></span><br><span class="line"><span class="comment"># VM version: JDK 17.0.8.1, OpenJDK 64-Bit Server VM, 17.0.8.1+8-LTS</span></span><br><span class="line"><span class="comment"># VM invoker: /Users/pengjunzhi/Library/Java/JavaVirtualMachines/corretto-17.0.8.1/Contents/Home/bin/java</span></span><br><span class="line"><span class="comment"># VM options: -Dfile.encoding=UTF-8 -Duser.country=CN -Duser.language=zh -Duser.variant</span></span><br><span class="line"><span class="comment"># Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)</span></span><br><span class="line"><span class="comment"># Warmup: 1 iterations, 10 s each</span></span><br><span class="line"><span class="comment"># Measurement: 2 iterations, 10 s each</span></span><br><span class="line"><span class="comment"># Timeout: 10 min per iteration</span></span><br><span class="line"><span class="comment"># Threads: 1 thread, will synchronize iterations</span></span><br><span class="line"><span class="comment"># Benchmark mode: Average time, time/op</span></span><br><span class="line"><span class="comment"># Benchmark: io.micrometer.benchmark.core.HistogramBenchmark.micrometerRecord</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 50.00% complete, ETA 00:02:31</span></span><br><span class="line"><span class="comment"># Fork: 1 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 15:25:23.556 [io.micrometer.benchmark.core.HistogramBenchmark.micrometerRecord-jmh-worker-1] DEBUG io.micrometer.common.util.internal.logging.InternalLoggerFactory - Using SLF4J as the default logging framework</span></span><br><span class="line">6960.654 ns/op</span><br><span class="line">Iteration   1: 6775.768 ns/op</span><br><span class="line">Iteration   2: 6614.436 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 60.00% complete, ETA 00:02:00</span></span><br><span class="line"><span class="comment"># Fork: 2 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 15:25:53.835 [io.micrometer.benchmark.core.HistogramBenchmark.micrometerRecord-jmh-worker-1] DEBUG io.micrometer.common.util.internal.logging.InternalLoggerFactory - Using SLF4J as the default logging framework</span></span><br><span class="line">6919.224 ns/op</span><br><span class="line">Iteration   1: 6918.534 ns/op</span><br><span class="line">Iteration   2: 6843.185 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 70.00% complete, ETA 00:01:30</span></span><br><span class="line"><span class="comment"># Fork: 3 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 15:26:24.055 [io.micrometer.benchmark.core.HistogramBenchmark.micrometerRecord-jmh-worker-1] DEBUG io.micrometer.common.util.internal.logging.InternalLoggerFactory - Using SLF4J as the default logging framework</span></span><br><span class="line">6957.126 ns/op</span><br><span class="line">Iteration   1: 6853.690 ns/op</span><br><span class="line">Iteration   2: 6840.857 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 80.00% complete, ETA 00:01:00</span></span><br><span class="line"><span class="comment"># Fork: 4 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 15:26:54.287 [io.micrometer.benchmark.core.HistogramBenchmark.micrometerRecord-jmh-worker-1] DEBUG io.micrometer.common.util.internal.logging.InternalLoggerFactory - Using SLF4J as the default logging framework</span></span><br><span class="line">6924.513 ns/op</span><br><span class="line">Iteration   1: 6958.296 ns/op</span><br><span class="line">Iteration   2: 6813.379 ns/op</span><br><span class="line"></span><br><span class="line"><span class="comment"># Run progress: 90.00% complete, ETA 00:00:30</span></span><br><span class="line"><span class="comment"># Fork: 5 of 5</span></span><br><span class="line"><span class="comment"># Warmup Iteration   1: 15:27:24.499 [io.micrometer.benchmark.core.HistogramBenchmark.micrometerRecord-jmh-worker-1] DEBUG io.micrometer.common.util.internal.logging.InternalLoggerFactory - Using SLF4J as the default logging framework</span></span><br><span class="line">7021.623 ns/op</span><br><span class="line">Iteration   1: 6887.827 ns/op</span><br><span class="line">Iteration   2: 6698.237 ns/op</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Result <span class="string">&quot;io.micrometer.benchmark.core.HistogramBenchmark.micrometerRecord&quot;</span>:</span><br><span class="line">  6820.421 ±(99.9%) 155.021 ns/op [Average]</span><br><span class="line">  (min, avg, max) = (6614.436, 6820.421, 6958.296), stdev = 102.537</span><br><span class="line">  CI (99.9%): [6665.400, 6975.442] (assumes normal distribution)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># Run complete. Total time: 00:05:02</span></span><br><span class="line"></span><br><span class="line">REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on</span><br><span class="line">why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial</span><br><span class="line">experiments, perform baseline and negative tests that provide experimental control, make sure</span><br><span class="line">the benchmarking environment is safe on JVM/OS/HW level, ask <span class="keyword">for</span> reviews from the domain experts.</span><br><span class="line">Do not assume the numbers tell you what you want them to tell.</span><br><span class="line"></span><br><span class="line">NOTE: Current JVM experimentally supports Compiler Blackholes, and they are <span class="keyword">in</span> use. Please exercise</span><br><span class="line">extra caution when trusting the results, look into the generated code to check the benchmark still</span><br><span class="line">works, and <span class="built_in">factor</span> <span class="keyword">in</span> a small probability of new VM bugs. Additionally, <span class="keyword">while</span> comparisons between</span><br><span class="line">different JVMs are already problematic, the performance difference caused by different Blackhole</span><br><span class="line">modes can be very significant. Please make sure you use the consistent Blackhole mode <span class="keyword">for</span> comparisons.</span><br><span class="line"></span><br><span class="line">Benchmark                            Mode  Cnt      Score     Error  Units</span><br><span class="line">HistogramBenchmark.dropwizardRecord  avgt   10  10383.716 ± 563.945  ns/op</span><br><span class="line">HistogramBenchmark.micrometerRecord  avgt   10   6820.421 ± 155.021  ns/op</span><br><span class="line"></span><br><span class="line">Deprecated Gradle features were used <span class="keyword">in</span> this build, making it incompatible with Gradle 9.0.</span><br><span class="line"></span><br><span class="line">You can use <span class="string">&#x27;--warning-mode all&#x27;</span> to show the individual deprecation warnings and determine <span class="keyword">if</span> they come from your own scripts or plugins.</span><br><span class="line"></span><br><span class="line">For more on this, please refer to https://docs.gradle.org/8.3/userguide/command_line_interface.html<span class="comment">#sec:command_line_warnings in the Gradle documentation.</span></span><br><span class="line"></span><br><span class="line">BUILD SUCCESSFUL <span class="keyword">in</span> 5m 6s</span><br><span class="line">23 actionable tasks: 2 executed, 21 up-to-date</span><br><span class="line">15:27:54: Execution finished <span class="string">&#x27;:micrometer-benchmarks-core:HistogramBenchmark.main()&#x27;</span>.</span><br></pre></td></tr></table></figure>
+
+<p><strong>结论：</strong>MicroMeter 优于 DropWizard，大约比例为 40%</p>
+<h2 id="2-4-Timer"><a href="#2-4-Timer" class="headerlink" title="2.4. Timer"></a>2.4. Timer</h2><p>测试代码：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> com.codahale.metrics.MetricRegistry;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.core.instrument.MeterRegistry;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.core.instrument.Timer;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.core.instrument.simple.SimpleMeterRegistry;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.prometheus.PrometheusConfig;</span><br><span class="line"><span class="keyword">import</span> io.micrometer.prometheus.PrometheusMeterRegistry;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.annotations.*;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.runner.Runner;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.runner.RunnerException;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.runner.options.Options;</span><br><span class="line"><span class="keyword">import</span> org.openjdk.jmh.runner.options.OptionsBuilder;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.Callable;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.TimeUnit;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 指定 Benchmark，测试多线程性能</span></span><br><span class="line"><span class="meta">@State(Scope.Benchmark)</span></span><br><span class="line"><span class="meta">@OutputTimeUnit(TimeUnit.NANOSECONDS)</span></span><br><span class="line"><span class="meta">@BenchmarkMode(Mode.AverageTime)</span></span><br><span class="line"><span class="meta">@Warmup(iterations = 1)</span></span><br><span class="line"><span class="meta">@Measurement(iterations = 2)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TimerBenchmark</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> RunnerException &#123;</span><br><span class="line">        <span class="type">Options</span> <span class="variable">opt</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">OptionsBuilder</span>()</span><br><span class="line">            .include(TimerBenchmark.class.getSimpleName())</span><br><span class="line">            .build();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">Runner</span>(opt).run();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> MeterRegistry micrometerRegistry;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> MetricRegistry dropwizardRegistry;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> Timer micrometerTimer;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> com.codahale.metrics.Timer dropwizardTimer;</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> <span class="variable">x</span> <span class="operator">=</span> <span class="number">923</span>;</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> <span class="variable">y</span> <span class="operator">=</span> <span class="number">123</span>;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Setup</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setup</span><span class="params">()</span> &#123;</span><br><span class="line">        micrometerRegistry = <span class="keyword">new</span> <span class="title class_">SimpleMeterRegistry</span>();</span><br><span class="line">        micrometerTimer = micrometerRegistry.timer(<span class="string">&quot;micrometerTimer&quot;</span>);</span><br><span class="line"></span><br><span class="line">        dropwizardRegistry = <span class="keyword">new</span> <span class="title class_">MetricRegistry</span>();</span><br><span class="line">        dropwizardTimer = dropwizardRegistry.timer(<span class="string">&quot;dropwizardTimer&quot;</span>);</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Benchmark</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">micrometerSumTimedWithSupplier</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">100</span>; i++) &#123;</span><br><span class="line">            micrometerTimer.record(x + y, TimeUnit.MILLISECONDS);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Benchmark</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">dropwizardSumTimedWithSupplier</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">100</span>; i++) &#123;</span><br><span class="line">            dropwizardTimer.update(x + y, TimeUnit.MILLISECONDS);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Benchmark</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">micrometerSumTimedWithSample</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">10</span>; i++) &#123;</span><br><span class="line">            Timer.<span class="type">Sample</span> <span class="variable">sample</span> <span class="operator">=</span> Timer.start(micrometerRegistry);</span><br><span class="line">            <span class="type">int</span> <span class="variable">sum</span> <span class="operator">=</span> sum();</span><br><span class="line">            sample.stop(micrometerTimer);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Benchmark</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">dropwizardSumTimedWithSample</span><span class="params">()</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">10</span>; i++) &#123;</span><br><span class="line">            dropwizardTimer.time(<span class="built_in">this</span>::sum);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">sum</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> x + y;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>测试结果：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">&gt; Task :micrometer-benchmarks-core:TimerBenchmark.main()</span><br><span class="line"># JMH version: <span class="number">1.37</span></span><br><span class="line"># VM version: JDK <span class="number">17.0</span><span class="number">.8</span><span class="number">.1</span>, OpenJDK <span class="number">64</span>-Bit Server VM, <span class="number">17.0</span><span class="number">.8</span><span class="number">.1</span>+<span class="number">8</span>-LTS</span><br><span class="line"># VM invoker: /Users/pengjunzhi/Library/Java/JavaVirtualMachines/corretto-<span class="number">17.0</span><span class="number">.8</span><span class="number">.1</span>/Contents/Home/bin/java</span><br><span class="line"># VM options: -Dfile.encoding=UTF-<span class="number">8</span> -Duser.country=CN -Duser.language=zh -Duser.variant</span><br><span class="line"># Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=<span class="literal">false</span> to disable)</span><br><span class="line"># Warmup: <span class="number">1</span> iterations, <span class="number">10</span> s each</span><br><span class="line"># Measurement: <span class="number">2</span> iterations, <span class="number">10</span> s each</span><br><span class="line"># Timeout: <span class="number">10</span> min per iteration</span><br><span class="line"># Threads: <span class="number">1</span> thread, will synchronize iterations</span><br><span class="line"># Benchmark mode: Average time, time/op</span><br><span class="line"># Benchmark: io.micrometer.benchmark.core.TimerBenchmark.dropwizardSumTimedWithSample</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">0.00</span>% complete, ETA <span class="number">00</span>:<span class="number">10</span>:<span class="number">00</span></span><br><span class="line"># Fork: <span class="number">1</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">1516.590</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">1530.353</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">1605.669</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">5.00</span>% complete, ETA <span class="number">00</span>:09:<span class="number">33</span></span><br><span class="line"># Fork: <span class="number">2</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">1507.719</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">1488.804</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">1576.604</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">10.00</span>% complete, ETA <span class="number">00</span>:09:<span class="number">03</span></span><br><span class="line"># Fork: <span class="number">3</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">1502.103</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">1497.555</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">1555.023</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">15.00</span>% complete, ETA <span class="number">00</span>:08:<span class="number">32</span></span><br><span class="line"># Fork: <span class="number">4</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">1556.940</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">1458.053</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">1505.888</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">20.00</span>% complete, ETA <span class="number">00</span>:08:<span class="number">02</span></span><br><span class="line"># Fork: <span class="number">5</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">1505.264</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">1516.316</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">1580.754</span> ns/op</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Result <span class="string">&quot;io.micrometer.benchmark.core.TimerBenchmark.dropwizardSumTimedWithSample&quot;</span>:</span><br><span class="line">  <span class="number">1531.502</span> ±(<span class="number">99.9</span>%) <span class="number">70.863</span> ns/op [Average]</span><br><span class="line">  (min, avg, max) = (<span class="number">1458.053</span>, <span class="number">1531.502</span>, <span class="number">1605.669</span>), stdev = <span class="number">46.871</span></span><br><span class="line">  CI (<span class="number">99.9</span>%): [<span class="number">1460.639</span>, <span class="number">1602.365</span>] (assumes normal distribution)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"># JMH version: <span class="number">1.37</span></span><br><span class="line"># VM version: JDK <span class="number">17.0</span><span class="number">.8</span><span class="number">.1</span>, OpenJDK <span class="number">64</span>-Bit Server VM, <span class="number">17.0</span><span class="number">.8</span><span class="number">.1</span>+<span class="number">8</span>-LTS</span><br><span class="line"># VM invoker: /Users/pengjunzhi/Library/Java/JavaVirtualMachines/corretto-<span class="number">17.0</span><span class="number">.8</span><span class="number">.1</span>/Contents/Home/bin/java</span><br><span class="line"># VM options: -Dfile.encoding=UTF-<span class="number">8</span> -Duser.country=CN -Duser.language=zh -Duser.variant</span><br><span class="line"># Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=<span class="literal">false</span> to disable)</span><br><span class="line"># Warmup: <span class="number">1</span> iterations, <span class="number">10</span> s each</span><br><span class="line"># Measurement: <span class="number">2</span> iterations, <span class="number">10</span> s each</span><br><span class="line"># Timeout: <span class="number">10</span> min per iteration</span><br><span class="line"># Threads: <span class="number">1</span> thread, will synchronize iterations</span><br><span class="line"># Benchmark mode: Average time, time/op</span><br><span class="line"># Benchmark: io.micrometer.benchmark.core.TimerBenchmark.dropwizardSumTimedWithSupplier</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">25.00</span>% complete, ETA <span class="number">00</span>:<span class="number">07</span>:<span class="number">32</span></span><br><span class="line"># Fork: <span class="number">1</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">12358.755</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">12309.136</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">12922.583</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">30.00</span>% complete, ETA <span class="number">00</span>:<span class="number">07</span>:<span class="number">02</span></span><br><span class="line"># Fork: <span class="number">2</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">12072.889</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">11971.788</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">12708.188</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">35.00</span>% complete, ETA <span class="number">00</span>:<span class="number">06</span>:<span class="number">32</span></span><br><span class="line"># Fork: <span class="number">3</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">12240.725</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">12189.390</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">12794.850</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">40.00</span>% complete, ETA <span class="number">00</span>:<span class="number">06</span>:<span class="number">02</span></span><br><span class="line"># Fork: <span class="number">4</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">11909.155</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">12186.550</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">13181.730</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">45.00</span>% complete, ETA <span class="number">00</span>:<span class="number">05</span>:<span class="number">31</span></span><br><span class="line"># Fork: <span class="number">5</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">12192.867</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">12209.921</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">12930.563</span> ns/op</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Result <span class="string">&quot;io.micrometer.benchmark.core.TimerBenchmark.dropwizardSumTimedWithSupplier&quot;</span>:</span><br><span class="line">  <span class="number">12540.470</span> ±(<span class="number">99.9</span>%) <span class="number">624.765</span> ns/op [Average]</span><br><span class="line">  (min, avg, max) = (<span class="number">11971.788</span>, <span class="number">12540.470</span>, <span class="number">13181.730</span>), stdev = <span class="number">413.243</span></span><br><span class="line">  CI (<span class="number">99.9</span>%): [<span class="number">11915.705</span>, <span class="number">13165.235</span>] (assumes normal distribution)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"># JMH version: <span class="number">1.37</span></span><br><span class="line"># VM version: JDK <span class="number">17.0</span><span class="number">.8</span><span class="number">.1</span>, OpenJDK <span class="number">64</span>-Bit Server VM, <span class="number">17.0</span><span class="number">.8</span><span class="number">.1</span>+<span class="number">8</span>-LTS</span><br><span class="line"># VM invoker: /Users/pengjunzhi/Library/Java/JavaVirtualMachines/corretto-<span class="number">17.0</span><span class="number">.8</span><span class="number">.1</span>/Contents/Home/bin/java</span><br><span class="line"># VM options: -Dfile.encoding=UTF-<span class="number">8</span> -Duser.country=CN -Duser.language=zh -Duser.variant</span><br><span class="line"># Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=<span class="literal">false</span> to disable)</span><br><span class="line"># Warmup: <span class="number">1</span> iterations, <span class="number">10</span> s each</span><br><span class="line"># Measurement: <span class="number">2</span> iterations, <span class="number">10</span> s each</span><br><span class="line"># Timeout: <span class="number">10</span> min per iteration</span><br><span class="line"># Threads: <span class="number">1</span> thread, will synchronize iterations</span><br><span class="line"># Benchmark mode: Average time, time/op</span><br><span class="line"># Benchmark: io.micrometer.benchmark.core.TimerBenchmark.micrometerSumTimedWithSample</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">50.00</span>% complete, ETA <span class="number">00</span>:<span class="number">05</span>:<span class="number">01</span></span><br><span class="line"># Fork: <span class="number">1</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">520.268</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">520.347</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">515.323</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">55.00</span>% complete, ETA <span class="number">00</span>:<span class="number">04</span>:<span class="number">31</span></span><br><span class="line"># Fork: <span class="number">2</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">516.566</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">520.164</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">509.640</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">60.00</span>% complete, ETA <span class="number">00</span>:<span class="number">04</span>:<span class="number">01</span></span><br><span class="line"># Fork: <span class="number">3</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">509.843</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">507.147</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">506.309</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">65.00</span>% complete, ETA <span class="number">00</span>:<span class="number">03</span>:<span class="number">31</span></span><br><span class="line"># Fork: <span class="number">4</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">510.824</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">504.709</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">505.124</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">70.00</span>% complete, ETA <span class="number">00</span>:<span class="number">03</span>:<span class="number">00</span></span><br><span class="line"># Fork: <span class="number">5</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">509.629</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">516.369</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">501.427</span> ns/op</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Result <span class="string">&quot;io.micrometer.benchmark.core.TimerBenchmark.micrometerSumTimedWithSample&quot;</span>:</span><br><span class="line">  <span class="number">510.656</span> ±(<span class="number">99.9</span>%) <span class="number">10.354</span> ns/op [Average]</span><br><span class="line">  (min, avg, max) = (<span class="number">501.427</span>, <span class="number">510.656</span>, <span class="number">520.347</span>), stdev = <span class="number">6.849</span></span><br><span class="line">  CI (<span class="number">99.9</span>%): [<span class="number">500.302</span>, <span class="number">521.010</span>] (assumes normal distribution)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"># JMH version: <span class="number">1.37</span></span><br><span class="line"># VM version: JDK <span class="number">17.0</span><span class="number">.8</span><span class="number">.1</span>, OpenJDK <span class="number">64</span>-Bit Server VM, <span class="number">17.0</span><span class="number">.8</span><span class="number">.1</span>+<span class="number">8</span>-LTS</span><br><span class="line"># VM invoker: /Users/pengjunzhi/Library/Java/JavaVirtualMachines/corretto-<span class="number">17.0</span><span class="number">.8</span><span class="number">.1</span>/Contents/Home/bin/java</span><br><span class="line"># VM options: -Dfile.encoding=UTF-<span class="number">8</span> -Duser.country=CN -Duser.language=zh -Duser.variant</span><br><span class="line"># Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=<span class="literal">false</span> to disable)</span><br><span class="line"># Warmup: <span class="number">1</span> iterations, <span class="number">10</span> s each</span><br><span class="line"># Measurement: <span class="number">2</span> iterations, <span class="number">10</span> s each</span><br><span class="line"># Timeout: <span class="number">10</span> min per iteration</span><br><span class="line"># Threads: <span class="number">1</span> thread, will synchronize iterations</span><br><span class="line"># Benchmark mode: Average time, time/op</span><br><span class="line"># Benchmark: io.micrometer.benchmark.core.TimerBenchmark.micrometerSumTimedWithSupplier</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">75.00</span>% complete, ETA <span class="number">00</span>:<span class="number">02</span>:<span class="number">30</span></span><br><span class="line"># Fork: <span class="number">1</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">2741.534</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">2716.235</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">2762.197</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">80.00</span>% complete, ETA <span class="number">00</span>:<span class="number">02</span>:<span class="number">00</span></span><br><span class="line"># Fork: <span class="number">2</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">2764.662</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">2788.028</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">2801.328</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">85.00</span>% complete, ETA <span class="number">00</span>:<span class="number">01</span>:<span class="number">30</span></span><br><span class="line"># Fork: <span class="number">3</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">2775.788</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">2794.196</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">2833.326</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">90.00</span>% complete, ETA <span class="number">00</span>:<span class="number">01</span>:<span class="number">00</span></span><br><span class="line"># Fork: <span class="number">4</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">2793.570</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">2774.927</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">2818.794</span> ns/op</span><br><span class="line"></span><br><span class="line"># Run progress: <span class="number">95.00</span>% complete, ETA <span class="number">00</span>:<span class="number">00</span>:<span class="number">30</span></span><br><span class="line"># Fork: <span class="number">5</span> of <span class="number">5</span></span><br><span class="line"># Warmup Iteration   <span class="number">1</span>: <span class="number">2773.815</span> ns/op</span><br><span class="line">Iteration   <span class="number">1</span>: <span class="number">2752.855</span> ns/op</span><br><span class="line">Iteration   <span class="number">2</span>: <span class="number">2816.498</span> ns/op</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Result <span class="string">&quot;io.micrometer.benchmark.core.TimerBenchmark.micrometerSumTimedWithSupplier&quot;</span>:</span><br><span class="line">  <span class="number">2785.839</span> ±(<span class="number">99.9</span>%) <span class="number">53.348</span> ns/op [Average]</span><br><span class="line">  (min, avg, max) = (<span class="number">2716.235</span>, <span class="number">2785.839</span>, <span class="number">2833.326</span>), stdev = <span class="number">35.287</span></span><br><span class="line">  CI (<span class="number">99.9</span>%): [<span class="number">2732.490</span>, <span class="number">2839.187</span>] (assumes normal distribution)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"># Run complete. Total time: <span class="number">00</span>:<span class="number">10</span>:<span class="number">03</span></span><br><span class="line"></span><br><span class="line">REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on</span><br><span class="line">why the numbers are the way they are. Use <span class="title function_">profilers</span> <span class="params">(see -prof, -lprof)</span>, design factorial</span><br><span class="line">experiments, perform baseline and negative tests that provide experimental control, make sure</span><br><span class="line">the benchmarking environment is safe on JVM/OS/HW level, ask <span class="keyword">for</span> reviews from the domain experts.</span><br><span class="line">Do not assume the numbers tell you what you want them to tell.</span><br><span class="line"></span><br><span class="line">NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise</span><br><span class="line">extra caution when trusting the results, look into the generated code to check the benchmark still</span><br><span class="line">works, and factor in a small probability of <span class="keyword">new</span> <span class="title class_">VM</span> bugs. Additionally, <span class="keyword">while</span> comparisons between</span><br><span class="line">different JVMs are already problematic, the performance difference caused by different Blackhole</span><br><span class="line">modes can be very significant. Please make sure you use the consistent Blackhole mode <span class="keyword">for</span> comparisons.</span><br><span class="line"></span><br><span class="line">Benchmark                                      Mode  Cnt      Score     Error  Units</span><br><span class="line">TimerBenchmark.dropwizardSumTimedWithSample    avgt   <span class="number">10</span>   <span class="number">1531.502</span> ±  <span class="number">70.863</span>  ns/op</span><br><span class="line">TimerBenchmark.dropwizardSumTimedWithSupplier  avgt   <span class="number">10</span>  <span class="number">12540.470</span> ± <span class="number">624.765</span>  ns/op</span><br><span class="line">TimerBenchmark.micrometerSumTimedWithSample    avgt   <span class="number">10</span>    <span class="number">510.656</span> ±  <span class="number">10.354</span>  ns/op</span><br><span class="line">TimerBenchmark.micrometerSumTimedWithSupplier  avgt   <span class="number">10</span>   <span class="number">2785.839</span> ±  <span class="number">53.348</span>  ns/op</span><br></pre></td></tr></table></figure>
+
+<p>结论：无论是直接更新抑或是通过 Sample 记录时间更新，Micrometer 均明显优于 DropWizard，大约比例为 300%；</p>
+<h2 id="2-5-Rate"><a href="#2-5-Rate" class="headerlink" title="2.5. Rate"></a>2.5. Rate</h2><p>MicroMeter 没有提供 Rate 语义的实现，目前 IoTDB 都使用的是 DropWizard base</p>
+<h1 id="3-优化方案"><a href="#3-优化方案" class="headerlink" title="3. 优化方案"></a>3. 优化方案</h1><h2 id="3-1-监控项选择参数"><a href="#3-1-监控项选择参数" class="headerlink" title="3.1. 监控项选择参数"></a>3.1. 监控项选择参数</h2><p>经过测试，决定<strong>选择 Micrometer 为 IoTDB Metric 系统的 baseline，在参数上舍弃 DropWizard 。</strong>理由如下<strong>：</strong></p>
+<ol>
+<li><p>Micrometer 在实现时基于 DropWizard ，可以理解为是 DropWizard 的扩展。因此 Micrometer <strong>在功能上</strong>可以完全覆盖 DropWizard，<strong>在可拓展性上</strong>比 DropWizard 更好。</p>
+</li>
+<li><p>经过性能测试，除了 Counter 和 Gauge，IoTDB 现有的 Micrometer base 监控指标<strong>性能均优于</strong> DropWizard base 监控指标（M 比 D 普遍性能优越40%以上）</p>
+<ol>
+<li>而 Micrometer base 的 Counter 和 Gauge 优化项也比较清晰，经过优化后，可以达到 DropWizard base 的性能表现。</li>
+</ol>
+</li>
+<li><p>截止 2023.10.23，无论是 issue 数还是 commit 数 Micrometer 均大于 DropWizard，说明前者<strong>社区更活跃。</strong></p>
+</li>
+</ol>
+<h2 id="3-2-【优化一】MetricType"><a href="#3-2-【优化一】MetricType" class="headerlink" title="3.2. 【优化一】MetricType"></a>3.2. 【优化一】MetricType</h2><h3 id="3-2-1-Gauge"><a href="#3-2-1-Gauge" class="headerlink" title="3.2.1 Gauge"></a>3.2.1 Gauge</h3><ol>
+<li><strong>问题：</strong></li>
+</ol>
+<p>由于 Micrometer 没有提供缓存版 gauge，因此在涉及读密集且重计算的场景时会有性能问题，预期不如 Dropwizard。<strong>考虑在 IoTDB 实现时加一层缓存进行优化。</strong></p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=Y2Q3OWE3ZmUwOTcwN2M4NDk0YzcyNzc5ZDIzOWE5OTdfTlRGQTQ5Wk40WGc3VzQ2bUFmeEl5WVZZNFJlcUllb3lfVG9rZW46VU1wOWJpcFFDb0xERHB4WHFMWGMwT3FobndzXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<ol start="2">
+<li><strong>优化：</strong></li>
+</ol>
+<p>加一个 cache，在失效时间内，如果反复读 gauge，直接返回 cache 的值。如果超过超时时间，重新调用计算函数 <code>ref.get()</code>，并更新 cache。</p>
+<blockquote>
+<p>组内大佬 review：由于主要调用是 promethus，15s 一次，并发性不高。该优化意义不是特别大，考虑作为写个新类，作为用户的 option</p>
+</blockquote>
+<h3 id="3-2-2-Rate"><a href="#3-2-2-Rate" class="headerlink" title="3.2.2. Rate"></a>3.2.2. Rate</h3><ol>
+<li><strong>问题：</strong></li>
+</ol>
+<p>原生 Rate 的更新和计算有大量冗余逻辑。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ODViNWEwMjU1ODRjODYxZWVlYTFiYTJiMmU1N2E0MmVfa0pvcnR5S2gwcXdKOWN6THJzUm1haUEyMnBCdW5hZ0lfVG9rZW46TGZKRmJqMUVLb0JrUmh4bVVOSmMyU25BbkhlXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<ol start="2">
+<li><strong>优化：</strong></li>
+</ol>
+<p>考虑从 m1、m5、m15 中删去其二。</p>
+<h3 id="3-2-3-Counter"><a href="#3-2-3-Counter" class="headerlink" title="3.2.3. Counter"></a>3.2.3. Counter</h3><ol>
+<li><strong>问题：</strong></li>
+</ol>
+<p>使用 DoubleAdder 作为 value 的容器<strong>，</strong>但是 IoTDB 的最终接口是 long，而 double 本身的运算开销也较大，因此涉及一些转化和计算开销</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NWQ0ZTkwZTI5NWI2OWQyNTYxNjlkNmQ0NzYwNmZkMTlfc3diM0l1blpraGc1Vk5udDRHeGN3ZDk3RlVOenYxenRfVG9rZW46RlJRRGJvZ3o5b1dkMFh4SEdRQmNodHBHbmRjXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZjhlOWZjMTQ5NjNjYThmNGUxOGM2NGRkNzdlOTU0ZmRfaVVlRUhield4MkE4N0E3V3drYkFTcnA0YkY2V1RURXlfVG9rZW46SVU2aWJpZjNLb016enF4b1ppNGMyMUhvbmJnXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<ol start="2">
+<li><strong>优化：</strong></li>
+</ol>
+<p><strong>考虑使用 LongAdder 实现 Counter。</strong></p>
+<h3 id="3-2-4-DistributionSummary-IoTDB-Histogram"><a href="#3-2-4-DistributionSummary-IoTDB-Histogram" class="headerlink" title="3.2.4. DistributionSummary &#x2F; IoTDB Histogram"></a>3.2.4. DistributionSummary &#x2F; IoTDB Histogram</h3><ol>
+<li><strong>问题：</strong><ol>
+<li>从前面分析可以看到，Micrometer 在每次写入数据时，对 ringBuffer 的所有 bucket 都进行了写入操作。</li>
+<li>从前面分析可以看到，当数据超过 hdrHistogram 范围时，会发生 resize，该操作有时间开销。目前的上下界 [1, 127] 显然范围有点小了，在大值数据场景下显然要 resize，甚至多次 resize。</li>
+</ol>
+</li>
+<li><strong>优化：</strong><ol>
+<li><strong>可以通过缩小 ringBuffer 的 size，从而减少写 bucket 次数</strong>，来提高 Micrometer Histogram 的写入效率<ol>
+<li>ringBuffer.length 默认设置为 3。根据上文，只要保证 ringBuffer.length 大于 1 既能保证淘汰旧数据的目的。因此考虑将 ringBuffer.length 设为 2（<strong>PR</strong><strong>:</strong> <a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/pull/11500%EF%BC%89">https://github.com/apache/iotdb/pull/11500）</a></li>
+</ol>
+</li>
+<li>可以对每一个 timer&#x2F;histogram 的使用场景预估数据区间，<strong>提前为每一个 timer&#x2F;histogram 定制数据上下界</strong>，尽量避免 resize 操作。<ol>
+<li>由于 Micrometer 没有暴露定制化 hdrHistogram 区间范围的 API，该改动阻塞。已向他们提 issue（<a target="_blank" rel="noopener" href="https://github.com/micrometer-metrics/micrometer/issues/4327%EF%BC%89">https://github.com/micrometer-metrics/micrometer/issues/4327）</a></li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+<h3 id="3-2-5-Timer"><a href="#3-2-5-Timer" class="headerlink" title="3.2.5. Timer"></a>3.2.5. Timer</h3><p>从火焰图和上文的分析中可以看出，Timer 主要耗时由 histogram 的更新和自己实现计时器的更新组成。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=YTk4OGVmYThmZmQ4YjhjOGExNzRlOTZhMzhhZDM0YTNfeEpNZTAycDk5T01MZVQ0OGxud2VsRGU0V3NSa0lDRW5fVG9rZW46THRmZ2JpZ3Y2b0Q1Wkp4UHdYb2M3NHZ6bnpiXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p>由于 Timer 底层使用 Histogram（前文分析过），因此优化 Histogram 也可以优化 Timer，此处不再赘述。</p>
+<h2 id="3-3-【优化二】架构"><a href="#3-3-【优化二】架构" class="headerlink" title="3.3. 【优化二】架构"></a>3.3. 【优化二】架构</h2><h3 id="3-3-1-IoTDBManager"><a href="#3-3-1-IoTDBManager" class="headerlink" title="3.3.1. IoTDBManager"></a>3.3.1. IoTDBManager</h3><p>完全删去原有的 io.micrometer.core.instrument.simple.SimpleMeterRegistry，将各项 Metric 的创建由 Registry 接管过来。<strong>这样优化的好处如下</strong>：</p>
+<ol>
+<li><p>完全适配 IoTDB 自己的命名系统，舍弃 Micrometer 的命名系统</p>
+</li>
+<li><p>由于不再借助 io.micrometer.core.instrument.simple.SimpleMeterRegistry 创建、管理、存储各项 Metric，使得不用再在 io.micrometer.core.instrument.simple.SimpleMeterRegistry 中创建 MetricMap，<strong>节省一倍内存</strong></p>
+</li>
+<li><p>舍弃原有的 JmxReporter，自己实现一套 JmxReporter，<strong>节省一倍内存</strong>。本文 3.4.2 会详细介绍设计以及优化点）</p>
+</li>
+</ol>
+<h4 id="3-3-1-1-各指标的自主创建流程"><a href="#3-3-1-1-各指标的自主创建流程" class="headerlink" title="3.3.1.1. 各指标的自主创建流程"></a>3.3.1.1. 各指标的自主创建流程</h4><ol>
+<li><strong>Gauge</strong></li>
+</ol>
+<p><code>IoTDBGauge</code> 的核心就是 <code>AtomicLong</code>。由于舍弃了 Micrometer 的命名系统，因此创建 <code>IoTDBGauge</code> 只需<code> new AtomicLong()</code> 即可。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MTU3OGY0MDllNGEzZmY3OTY2YWYyYjI1YmU3OTczMThfd0lVVkNCVVE1aUVab1FUajZJaUh3MlFCZFRSM1dwaTdfVG9rZW46SVRIVWJKZ3RVb2xjbnB4VXpYY2MyVjdabmtmXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<ol start="2">
+<li><strong>AutoGauge</strong></li>
+</ol>
+<p><code>IoTDBAutoGauge</code> 主要修改了 <code>WeakReference</code> 的引用。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ODliYTM1ZWVlZTE0ZmIwMWY3MzQxOGE2MDA4ZTMxMzhfckZhQjJxdUkzbHFTREpCSE9KSGdLajhEaWhPVlZyYkFfVG9rZW46TWg0VGJ0ZENBbzVFMFF4Y3RNZGNEQ3BQbnlnXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p>在原本实现中传入 <code>WeakReference</code> 的 <code>meterRegistry.gauge(...)</code> 中， <code>meterRegistry.gauge(...)</code> 返回的仅仅就是参数中的 <code>object</code>。因此这里直接将<code>WeakReference</code> 的参数改为了 <code>object</code>。</p>
+<p>至于在 <code>meterRegistry.gauge</code> 中创建的 <code>gauge</code>，<code>IoTDBAutoGauge</code> 并没有用到，原来的实现只是为了在 <code>Micrometer</code> 的命名系统中创建一个同名 <code>gauge</code>。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MjYxMDA0YmZjMDNhNTQ0NzU1YjVjZWVmZjc2MWE1YmFfaUwyNnBOUkxnM3U1ZUFSRDhrdGxpM1NQOXpSRXRFTEtfVG9rZW46WVBKRmJkMXI2b1dxQnh4dW9TS2NZdjd4bkVoXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<ol start="3">
+<li><strong>Counter</strong></li>
+</ol>
+<p>完全舍弃掉 Micrometer 的实现，只保留 <code>LongAdder</code></p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NmZmZDlmMTlhOTRiNDAyZDc2Nzk2YTdkZmQxYzcwMDJfQzI4cVdJc3NhbnhMeWQ4RUZLcDkyUmwyS3pmYVJiYW9fVG9rZW46UWhSeGI1RWdGb2xkTnZ4RHl2RGNsQm1obmZhXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<ol start="4">
+<li><strong>Rate</strong></li>
+</ol>
+<p>IoTDB 的实现在 Micrometer 的基础上砍去了 m5、m15 等统计点，因此传入 IoTDB 定制的 <code>IoTDBMovingAverage</code> 即可</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZDY1NDhiODlkNmE3MWVmOWQ2NjVmMmNhMWNkODY1MDBfMktxcGRrYUpRQTFKaE1rVXJQM0VrbmNMbVRDV1lzRkZfVG9rZW46VzJ2MmJPQktnb0F6dEd4RXNya2M5cGhvbm5iXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<ol start="5">
+<li><strong>Timer</strong></li>
+</ol>
+<p>参考 SimpleMeterRegistry 的创建流程。经验证，创建后的 CumulativeTimer 与原来的实现属性一致，符合预期。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ODYzMjk3NTQyOTc3OTVlMmZlNjM3MjgwZTExMmU2ZjhfbG9XTXlaeEhPU0t1NWoxNk1ZZ3EzeE1BZU5DcDVIOVVfVG9rZW46Q2N4ZmJYd3ZKb1hwTmN4eW1lRGNvZWpqblJiXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<ol start="6">
+<li><strong>Histogram</strong></li>
+</ol>
+<p>参考 SimpleMeterRegistry 的创建流程。经验证，创建后的 CumulativeDistributionSummary 与原来的实现属性一致，符合预期。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MDhmMTM5NTI2NTA3NTM1NmQzNzUxYmE1NTI5MTJlMWZfem1yOXBUbXdHTzFwS3E5MDdVbG1uUzJFSjEzVWRuZUJfVG9rZW46UG5xQmJnSDdZb2tZRUJ4Ums5WmNpNFRobktiXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<h3 id="3-3-2-JmxReporter"><a href="#3-3-2-JmxReporter" class="headerlink" title="3.3.2. JmxReporter"></a>3.3.2. JmxReporter</h3><p>舍弃 <code>io.micrometer.jmx.JmxMeterRegistry</code> 的实现，自己实现 <code>JmxReporter</code>。<strong>这样优化的好处主要是节省一倍内存</strong>，原因如下：</p>
+<p><code>io.micrometer.jmx.JmxMeterRegistry</code> 的实现是将 <code>JmxReporter</code> 监听 Registry，每次 Registry 创建新指标项时，<code>JmxReporter</code> 也创建一份实现了 MBean 接口的指标对象，相当于<strong>一个监控项创建了两个对象</strong>。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NDFkZjAzMGM4OTExNDU1MzFiYzllOWI1YmIyZDcyMDBfbnBYRjNKVURINGJaZkdDZUVOT1VmSVJmcXZsWEljUWlfVG9rZW46UmlpbmJybkljb2tPakZ4UjJWVmNUS1YybkFjXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=Njg5Yzg1NzAyOWJlOGNjNTE0NGI2YWIyNGY1OWJmOGRfQXByb0xod3U0NzRadkJnSkdKd2xDZHRzTmtBT3UxWG1fVG9rZW46SWdZV2J5Zm1Nb3hmOW14a3hDMmNkbHo2blNHXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><code>IoTDBJmxReporter</code> 的设计思路是：</p>
+<ol>
+<li>所有指标项天然实现 MBean 接口</li>
+</ol>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NTQzZDNmYzRjM2IzOGQ2YWVlN2NhN2RjMDBlZDMzZjdfQnVPcmF2V0xTUDZvWlNMeEFZZ1ZYVUoxNFJZNGJmeFdfVG9rZW46VFUxbWJwZ1lCb09lczJ4VXdROWNzdmJibkZkXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OTRjMTNjOGU3ZTE2ZWViOGQ3YTJjZGY1ODJmNjAzNWFfa3dvUDFVYjBhM2NwYnhYbFE4QVZwbmRCeFJOZ1Ntc3dfVG9rZW46RlY2M2JUUzlWb2VjR1J4WGdHN2NqdjI3blJRXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<ol start="2">
+<li><code>IoTDBJmxReporter</code> 的作用仅为监听 <code>IoTDBMetricManager</code>，当有新指标创建时，将其注册到 JMX 中。当 <code>ReporterType</code> 不为 JMX 时，所有指标项不会被注册到 JMX 中。<ol>
+<li>该实现在不开启 JmxReporter 时不会有额外性能开销；在开启 JmxReporter 时，由于 JmxReporter 只需完成注册操作，相比 Micrometer 的实现少了创建对象的性能开销。</li>
+</ol>
+</li>
+</ol>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NThhMGQ4OTA0ZDJjNTNlZTkyM2VlYTVjNDIwYjE2OWRfOE80TVhlQzNaUUpDT3dRbHVhUWJldzBmV29pd0F4T3pfVG9rZW46RWJSN2J2VmNMb1UzdEZ4a0NkSmM2dGpmbjBkXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=N2NkODE2NjFhMTFlOGZlNzA3MWZjYjBmODY4ZWVkYThfMVZ0WHlTVUhXa3BQQnVyR3p5azk1VllqRXhmWkJjdlpfVG9rZW46WW9KWWJkaERnb3c5U2R4VWFlY2NISDNMbmRjXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><strong>踩坑：</strong>MBean 的接口需要和实现类在同一个包下，且类名、接口名必须严格对应，且 objectName 必须符合 <a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_21383435/article/details/111051784">MBean 规范</a></p>
+<ol start="3">
+<li><strong>实现效果：</strong></li>
+</ol>
+<p>在 org.apache.iotdb.metrics 下有各指标的 jmx 预览项。</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=Y2QxODc4NTYwNzI4YTY1OWY3NDUyYjA2OTczNTQ4ZTZfOTU3b2VVWVNPMmpwZUpsVVlISmJTeDZadE91Ykh0Q2pfVG9rZW46WXpPOGJobnNNb2p0eG94UWt1Y2Nhek9UbmhmXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZmYzNWZlZDAyNTdkNTlhM2Y5NTNhY2QzNTA4YmIzOGVfc05UU00xdjh3NHNtbEUxRXc1R2ZHMWZNaWxDN3B6MnJfVG9rZW46UnZBbmJkU2FubzZDT1p4cFJTS2NkUWVGbnZmXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NzZiZjY0N2EyZTFhYWM0YWE4M2M1NjUxYjhiZjBlMTVfV1poeDRFcWFaSzR1cUhOVU5kZUJySEZxTEIxMXBwWmtfVG9rZW46TUFmQmJGTFZOb1FSMHd4U25nTmN0dDhzblZkXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<h1 id="4-优化效果"><a href="#4-优化效果" class="headerlink" title="4. 优化效果"></a>4. 优化效果</h1><ol>
+<li><strong>环境</strong></li>
+</ol>
+<p>在某环境负载下，1C1D 测试。</p>
+<ul>
+<li>baseline：<a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/commit/1dd5a200281aff1f42a9d7abdbde9d172445d4f6">1dd5a200281aff1f42a9d7abdbde9d172445d4f6</a></li>
+<li>对比优化后：<a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/commit/a4510266fdb74e95f0cfabec36ad3f16155eaa60">a4510266fdb74e95f0cfabec36ad3f16155eaa60</a></li>
+</ul>
+<ol start="2">
+<li><strong>火焰图实测</strong></li>
+</ol>
+<p>图中浅紫色高亮的是 metrics 部分的开销</p>
+<ul>
+<li>优化前（1dd5a200281aff1f42a9d7abdbde9d172445d4f6）：metrics 整体占比大约在 <strong>9.79%</strong></li>
+</ul>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NDZlNjg5YmJlMDQyOWRhMmQ0MTVhZTUzNmUwOGVjMzZfZ0FKbW41VFVBUXRmN1dRd0tsQ3pwRDRRdWdKdnJhc0JfVG9rZW46V0dybGJUVnVUb1ZnMFl4OVo4UWNQWmhSbk5kXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p>优化后（a4510266fdb74e95f0cfabec36ad3f16155eaa60）：metrics 整体占比大约在 **5.81%<strong>，优化了</strong>41%**的性能</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NTkyY2ZlY2Q1ODQ5MWFkMjZiMmE0NGI3ZGRhZjdiYjJfYnVJcldUZHAxdVpYWEt0UkNGVHo4S1lSdFZOWlgwdlZfVG9rZW46U2dpZ2J3WjFib1phdlh4QTR5M2NOQ2xKbm1jXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<h1 id="5-总结"><a href="#5-总结" class="headerlink" title="5. 总结"></a>5. 总结</h1><ol>
+<li><p><strong>CPU 开销</strong>：9.79% -&gt; 5.81%，优化了 41%。</p>
+</li>
+<li><p><strong>空间：</strong>由于架构上的优化，metrics 在空间占用上降低了一倍开销。</p>
+</li>
+<li><p><strong>可用性：</strong>对于用户，去掉了算法库参数的选择；对于开发者，统一了原有的 Micrometer 和 DropWizard 内部实现为 metric-core，形成了 IoTDB 自己的实现方案。</p>
+</li>
+</ol>
+<h1 id="6-心得"><a href="#6-心得" class="headerlink" title="6. 心得"></a>6. 心得</h1><p>本次性能优化的流程是：</p>
+<ol>
+<li>调研 baseline（花了一周）</li>
+<li>对比 iotdb 和 baseline，找出冗余点（花了半周）</li>
+<li>性能测试，对比 baseline（花了半周）</li>
+<li>跑火焰图，分析目标函数瓶颈（花了一天）</li>
+<li>结合上述资料，尝试代码改造。改造的<strong>思路</strong>如下：<ol>
+<li>能不能串行改并行？（no）</li>
+<li>能不能同步改异步？（no）</li>
+<li>有没有冗余逻辑，能不能删掉？（yes）</li>
+<li>有没有计算密集场景，能不能加缓存？（yes）</li>
+<li>其他杂项开销（如 double 和 long 的转化，CompositeMeterRegistry 等）</li>
+<li>补充：批处理；拆锁；</li>
+</ol>
+</li>
+</ol>
+<p>其中在火焰图上有一个 trick 的积累：idea 可以继承 async-profiler 进行火焰图分析，并可以很方便的查看结果、统计各阶段耗时比例、查看调用树等。</p>
+<ol>
+<li><strong>配置</strong></li>
+</ol>
+<p>打开 setting，新增 CPU profiler。options 经个人测试，填写<code>event=cpu,interval=1ms</code>的实际体验比较好</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MDViZTNhODNiMGY0Y2UzMDA0MTUxYmEzOTQ0YTU3ZWZfdWFHY0F3ZVVrdjFKRzJKREVDTmkxMlZLTFF4WDJpWE9fVG9rZW46RU5Jc2JVblNQbzNVQ014bDFKR2NZZFZ1bnBmXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<ol>
+<li><strong>使用</strong></li>
+</ol>
+<p>在 run 项目时选中 profiler 即可</p>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=YTJiZDJkMzgzNjUwYTU3ZjI0NmRmODg3ZDMzYzMxZWFfOU9EUmFKZktDZ1c1WDBLWGFXZnhFVFhYMkp4Wjdsa1hfVG9rZW46VHoxUGJCemtob0JnUFl4RnlHcWNLUlF2bkVnXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<ol>
+<li><strong>查看结果</strong></li>
+</ol>
+<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZWNhMmUwNTg3MjQ2MjFjMDBkMjcwNzhlYjg4M2UxMWZfZ1dacTJDZUt1WklmbFVuU3pUREZxaEVLelUxVmROWFlfVG9rZW46TTNpUWJKakFrbzdON3J4WGtETmNDQlN3bmVmXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<h1 id="Ref"><a href="#Ref" class="headerlink" title="Ref"></a>Ref</h1><ol>
+<li><a target="_blank" rel="noopener" href="https://izualzhy.cn/dropwizard-metrics#14-histograms">https://izualzhy.cn/dropwizard-metrics#14-histograms</a></li>
+<li><a target="_blank" rel="noopener" href="https://metrics.dropwizard.io/4.1.1">https://metrics.dropwizard.io/4.1.1</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.fortra.com/resources/guides/unix-load-average-part-1-how-it-works">https://www.fortra.com/resources/guides/unix-load-average-part-1-how-it-works</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/mindforward/p/15792132.html">https://www.cnblogs.com/mindforward/p/15792132.html</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/29178293">https://zhuanlan.zhihu.com/p/29178293</a></li>
+<li><a target="_blank" rel="noopener" href="https://metrics.dropwizard.io/4.2.0/manual/core.html#">https://metrics.dropwizard.io/4.2.0/manual/core.html#</a></li>
+<li><a target="_blank" rel="noopener" href="https://micrometer.io/docs/observation">https://micrometer.io/docs/observation</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.baeldung.com/dropwizard-metrics">https://www.baeldung.com/dropwizard-metrics</a></li>
+<li><a target="_blank" rel="noopener" href="https://caorong.github.io/2020/08/03/quartile-%20algorithm/">https://caorong.github.io/2020/08/03/quartile-%20algorithm/</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/568777601">https://zhuanlan.zhihu.com/p/568777601</a></li>
+<li><a target="_blank" rel="noopener" href="https://cxybb.com/article/superice_/121311005">https://cxybb.com/article/superice_/121311005</a></li>
+<li><a target="_blank" rel="noopener" href="https://caorong.github.io/2016/07/31/hdrhistogram/">https://caorong.github.io/2016/07/31/hdrhistogram/</a></li>
+</ol>
+
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/JVM-GC/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/Blog-building-log/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>
