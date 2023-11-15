@@ -103,7 +103,7 @@
 
 <div class="post">
   <h3 class="date">
-    Sep 30, 2023
+    Aug 30, 2023
   </h3>
   <h1>
     JVM GC 调研与基于 Apache IoTDB 的 GC 监控设计
@@ -111,7 +111,12 @@
   <div class="content markdown-body">
     <h2 id="1-背景"><a href="#1-背景" class="headerlink" title="1. 背景"></a>1. 背景</h2><p>本文是作者在调研改进 IoTDB JVM GC 监控板块时产出的相关 wiki，主要包含 GC 基本知识、不同 JDK 下的 GC 算法细节，以及设计改进 IoTDB JVM GC 监控板块时的思路等内容。本文旨在优化 IoTDB 现有 GC 监控系统，结合实际生产需要，扩充现有 metric 指标，使其针对不同 JDK 的 GC Collector 能更精准、高效的进行监控。</p>
 <blockquote>
-<p>JVM GC 是一个浩瀚的系统领域，本文仅于皮毛处探讨，起抛砖引玉之效。如有错误，敬请指出，欢迎各位大佬通过邮件或微信与我进一步交流！</p>
+<ol>
+<li><p>JVM GC 是一个浩瀚的系统领域，本文仅于皮毛处探讨，起抛砖引玉之效。如有错误，敬请指出，欢迎各位大佬通过邮件或微信与我进一步交流！</p>
+</li>
+<li><p>本文引用、整合了大量互联网资料（文字、图片），同时也有自己的探究、实验和思考。感谢所有互联网大佬的无私分享，结尾给出了所有的 Reference 链接。</p>
+</li>
+</ol>
 </blockquote>
 <p>在系统工程设计之外，为了更好地帮助理解，<strong>本文涉及以下相关概念</strong>，读者可提前<strong>按需浏览：</strong></p>
 <ul>
@@ -119,10 +124,10 @@
 <li>常见的 GC 收集器以及它们的基本特点，具体可参见【3. GC 收集器、10. 其他】</li>
 <li>如何判断 GC 异常，具体可参见【4. GC 异常的判断】</li>
 </ul>
-<h2 id="2-GC-基础"><a href="#2-GC-基础" class="headerlink" title="2. GC 基础"></a>2. <strong>GC</strong> <strong>基础</strong></h2><h3 id="2-1-JVM-内存划分"><a href="#2-1-JVM-内存划分" class="headerlink" title="2.1. JVM 内存划分"></a>2.1. JVM 内存划分</h3><p>此部分是后续监控指标设计的依据，因此详细介绍：</p>
+<h2 id="2-GC-基础"><a href="#2-GC-基础" class="headerlink" title="2. GC 基础"></a>2. GC 基础</h2><h3 id="2-1-JVM-内存划分"><a href="#2-1-JVM-内存划分" class="headerlink" title="2.1. JVM 内存划分"></a>2.1. JVM 内存划分</h3><p>此部分是后续监控指标设计的依据，因此详细介绍：</p>
 <p>JVM 内存中的对象，大致可以分为两大类：一类对象，他们的生命周期很短暂，比如局部变量、临时对象等。另一类对象则会存活很久，比如用户应用程序中 DB 长连接中的 Connection 对象。为了对这两类对象分别高效回收，JVM 的内存使用<strong>分代思想</strong>进行划分。</p>
 <p>以 Java 8 的内存结构为例：</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MGU1NTYwZTQyMzMzNDdhZDk5MWI1NWM1OWQ3ZTlhNTVfZ2tPc3ZQeVRjdjFJaWVMeHNkY1h6TjJ2WWoxYWRFM3hfVG9rZW46RHp1emIwZHdwb3p2dkJ4VXlWQmNndEMxbmtjXzE3MDAwMzM0Njc6MTcwMDAzNzA2N19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115174532651.png" alt="image-20231115174532651"></p>
 <p>可以看到，JVM 的内存被分为了不同的区域。GC 主要工作在 Heap 区和 MetaSpace 区（上图蓝色部分），而在 GC 的主要工作区，<strong>内存又被分为了不同的代际</strong>。下面这张表格简单描述了我们主要需要关注的区域：</p>
 <table>
 <thead>
@@ -179,7 +184,7 @@
 </ul>
 <figure class="highlight c++"><table><tr><td class="code"><pre><span class="line">ZHeap <span class="comment">// non-generational</span></span><br></pre></td></tr></table></figure>
 
-<h3 id="2-2-GC-收集过程"><a href="#2-2-GC-收集过程" class="headerlink" title="2.2. GC 收集过程"></a>2.2. GC 收集过程</h3><p>基于上述分代内存，JVM 使用<strong>分代<strong><strong>垃圾回收</strong></strong>算法</strong>（当然，JDK 11 以后的某些新收集器使用非代际垃圾回收算法，这些会在后文中提到），其大致执行过程如下：</p>
+<h3 id="2-2-GC-收集过程"><a href="#2-2-GC-收集过程" class="headerlink" title="2.2. GC 收集过程"></a>2.2. GC 收集过程</h3><p>基于上述分代内存，JVM 使用<strong>分代垃圾回收算法</strong>（当然，JDK 11 以后的某些新收集器使用非代际垃圾回收算法，这些会在后文中提到），其大致执行过程如下：</p>
 <ul>
 <li>初始态：对象分配在 Eden 区，S0、S1 区几乎为空。</li>
 <li>随着程序的运行，越来越多的对象被分配在 Eden 区。</li>
@@ -188,41 +193,43 @@
 <li>随着程序的运行，Eden 空间会被分配殆尽，这时会重复刚才 MinorGC 的过程，不过此时，S0 区是空的，S0 和 S1 区域会互换，此时存活的对象会从 Eden 和 S1 区，向S0 区移动。然后 Eden 和 S1 区中的垃圾会被清除，这一轮完成之后，这两个区域为空。</li>
 <li>在程序运行过程中，虽然大多数对象都会很快消亡，但仍然存在一些存活时间较长的对象，对于这些对象，<strong>在 S0 和 S1 区中反复移动</strong>，会造成一定的性能开销，降低 GC 的效率。因此引入了对象晋升的行为。</li>
 <li>当对象在新生代的 Eden、S0、S1 区域之间，每次从一个区域移动到另一个区域时，年龄都会加一，在达到一定的阈值后，如果该对象仍然存活，该对象将会晋升到老年代。</li>
-<li>如果老年代也被分配完毕后，就会出现 <strong>MajorGC（即Full</strong> <strong>GC****）</strong>，由于老年代通常对象比较多，因此标记-整理算法的耗时较长，因此会出现 <strong>STW</strong> 现象，因此大多数应用都会尽量减少或者避免出现 Full GC 的原因。</li>
+<li>如果老年代也被分配完毕后，就会出现 <strong>MajorGC（即Full GC）</strong>，由于老年代通常对象比较多，因此标记-整理算法的耗时较长，因此会出现 <strong>STW</strong> 现象，因此大多数应用都会尽量减少或者避免出现 Full GC 的原因。</li>
 </ul>
 <p>需要特别说明的是：对于一个新分配的对象，如果 Eden 区放不下，但是老年代可以放下时，该对象会被直接分配到老年代，不会按照上述从新生代晋升到老年代。</p>
 <p>上面提到了一些如<strong>「复制算法」、「不可达」</strong>、<strong>「标记-整理」</strong>等概念，这里引用网络资料进行一一简单介绍：</p>
 <h4 id="2-2-1-识别垃圾"><a href="#2-2-1-识别垃圾" class="headerlink" title="2.2.1. 识别垃圾"></a>2.2.1. 识别垃圾</h4><ul>
 <li><strong>引用计数法（Reference Counting）：</strong> 对每个对象的引用进行计数，每当有一个地方引用它时计数器 +1、引用失效则 -1，引用的计数放到对象头中，大于 0 的对象被认为是存活对象。虽然循环引用的问题可通过 Recycler 算法解决，但是在多线程环境下，引用计数变更也要进行昂贵的同步操作，性能较低，早期的编程语言会采用此算法。</li>
-<li><strong>可达性分析，又称引用链法（Tracing</strong> <strong>GC****）：</strong> 从 GC Root 开始进行对象搜索，可以被搜索到的对象即为可达对象，此时还不足以判断对象是否存活&#x2F;死亡，需要经过多次标记才能更加准确地确定，整个连通图之外的对象便可以作为垃圾被回收掉。目前 Java 中主流的虚拟机均采用此算法。</li>
+<li><strong>可达性分析，又称引用链法（Tracing GC）：</strong> 从 GC Root 开始进行对象搜索，可以被搜索到的对象即为可达对象，此时还不足以判断对象是否存活&#x2F;死亡，需要经过多次标记才能更加准确地确定，整个连通图之外的对象便可以作为垃圾被回收掉。目前 Java 中主流的虚拟机均采用此算法。</li>
 </ul>
 <h4 id="2-2-2-收集算法"><a href="#2-2-2-收集算法" class="headerlink" title="2.2.2. 收集算法"></a>2.2.2. 收集算法</h4><p>自从有自动内存管理出现之时就有的一些收集算法，不同的收集器也是在不同场景下进行组合。</p>
 <ul>
 <li><strong>Mark-Sweep（标记-清除）：</strong> 回收过程主要分为两个阶段，第一阶段为追踪（Tracing）阶段，即从 GC Root 开始遍历对象图，并标记（Mark）所遇到的每个对象，第二阶段为清除（Sweep）阶段，即回收器检查堆中每一个对象，并将所有未被标记的对象进行回收，整个过程不会发生对象移动。整个算法在不同的实现中会使用三色抽象（Tricolour Abstraction）、位图标记（BitMap）等技术来提高算法的效率，存活对象较多时较高效。</li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ODY2NTFjMGYzN2FmMzYwMjRlZjEwYmYwZGYxNzA2YjJfVFBwZ0Fhd1RidHFWUUxzSEpJVnB4T1BVSXR1eEtHd2RfVG9rZW46RjhNemJncG9Zb1BoZVN4cmlmQmNEOXhrblZmXzE3MDAwMzM0OTI6MTcwMDAzNzA5Ml9WNA" alt="img"></p>
+<div align="center"><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115174549490.png" alt="image-20231115174549490" style="zoom:33%;" /></div>
+
 <ul>
 <li><strong>Copying（复制）：</strong> 该算法是为了解决标记-清除算法效率低下、GC 之后空间不连续的问题。该算法将空间分为两个大小相同的 From 和 To 两个半区，同一时间只会使用其中一个，每次进行回收时将一个半区的存活对象通过复制的方式转移到另一个半区。复制算法可以通过碰撞指针的方式进行快速地分配内存，但是也存在着空间利用率不高（只有一半）的缺点，另外就是存活对象比较大时复制的成本比较高。</li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NjcyODlkYWU3ZmMyZDhkZjVmZTE0ZjZmZDJhZGIzZGRfVVpZamtyVmtxM0I3V205Rmw5VVhUSmo2QmhtdkQzNGZfVG9rZW46QVU3Y2JyaWozb2daM2F4Y0VJV2NGbFVTbmtlXzE3MDAwMzM1MTU6MTcwMDAzNzExNV9WNA" alt="img"></p>
+<div align="center"><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115174612759.png" alt="image-20231115174612759" style="zoom: 40%;" /></div>
+
 <ul>
 <li><strong>Mark-Compact （标记-整理）：</strong> 这个算法的主要目的就是解决在非移动式回收器中都会存在的碎片化问题，也分为两个阶段，第一阶段与 Mark-Sweep 类似，标记哪些对象死亡，哪些对象被引用，第二阶段则会对存活对象按照整理顺序（Compaction Order）进行整理。</li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ODUzZGU3MjI3NmFhM2Q0YTQwZmUxN2M5NmJjYzg0NmFfYk50Y2xBbUJkM0ZWMEdhcFJSeVpNS3RYQ3NEbWpuWHpfVG9rZW46QTh4S2JlMEZCbzBHMDN4dkQ5b2NWNnRCbmhkXzE3MDAwMzM1MjU6MTcwMDAzNzEyNV9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115180028849.png" alt="image-20231115180028849"></p>
 <p>在 JDK 8 中，默认情况下采用分代垃圾回收策略，其中新生代使用标记-复制算法，老年代使用标记-整理算法。</p>
 <p>这是因为老年代<strong>长生命周期</strong>对象多，如果使用复制算法会十分低效。</p>
 <ul>
 <li>三种算法在是否移动对象、空间和时间方面的一些对比，假设存活对象数量为 <em>L</em>、堆空间大小为 <em>H</em>，则：</li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=Y2JiY2EzNjIxZDE3YWQxMTczOWNhZTQ0NWE5MmU1NzJfMmlDeExFZHFsQVV4MUp0MFRVU1JhdjBDYWl2dkJYOWlfVG9rZW46SDFYc2J2WjdSb0NKUkd4cE0yUWNsdGU1bmZmXzE3MDAwMzM1MzM6MTcwMDAzNzEzM19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115180015502.png" alt="image-20231115180015502"></p>
 <p>把 mark、sweep、compaction、copying 这几种动作的耗时放在一起看，大致有这样的关系：</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NWM5ODI2ODQ1ZWI2ZWJhOWFlMjI3MWU1Mzg1NDkwMDhfS1d5Q21PandIb1cxeHVsT01wbkJEYVFMNjNTUHd3a2NfVG9rZW46WHIza2JPd2dQb3VoU2h4c0dicGNwamdlbm1jXzE3MDAwMzM1Mzg6MTcwMDAzNzEzOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115180005979.png" alt="image-20231115180005979"></p>
 <p>虽然 compaction 与 copying 都涉及移动对象，但取决于具体算法，compaction 可能要先计算一次对象的目标地址，然后修正指针，最后再移动对象。copying 则可以把这几件事情合为一体来做，所以可以快一些。另外，<strong>还需要留意</strong> <strong>GC</strong> <strong>带来的开销不能只看 Collector 的耗时，还得看 Allocator</strong> 。如果能保证内存没碎片，分配就可以用 pointer bumping 方式，只需要挪一个指针就完成了分配，非常快。而如果内存有碎片就得用 freelist 之类的方式管理，分配速度通常会慢一些。</p>
 <ul>
 <li><strong>Generational Collection(分代收集)算法</strong></li>
 </ul>
 <p>分代收集算法根据对象的生存周期，将堆分为新生代(<code>Young</code>)和老年代(<code>Tenur</code>)。在新生代中，由于对象生存期短，每次回收都会有大量对象死去，那么这时就采用<strong>复制算法</strong>。老年代里的对象存活率较高，没有额外的空间进行分配担保，所以可以使用<strong>标记-整理</strong>或者<strong>标记-清除</strong>。</p>
-<h2 id="3-GC-收集器"><a href="#3-GC-收集器" class="headerlink" title="3. GC 收集器"></a>3. GC <strong>收集器</strong></h2><p>这里枚举一下各 JDK 版本支持的 GC 收集器，作为快速了解。针对具体常用收集器的调研可参见【10. 其他】</p>
+<h2 id="3-GC-收集器"><a href="#3-GC-收集器" class="headerlink" title="3. GC 收集器"></a>3. GC 收集器</h2><p>这里枚举一下各 JDK 版本支持的 GC 收集器，作为快速了解。针对具体常用收集器的调研可参见【10. 其他】</p>
 <p>根据 JDK 版本支持的策略，JDK 8、JDK 11 和 JDK 17 是目前长期支持的版本。目前这3个版本共支持7个垃圾回收器，分别是</p>
 <ol>
 <li><strong>SerialGC</strong></li>
@@ -234,24 +241,24 @@
 <li><strong>Epsilon</strong>（实验特性，仅支持分配不回收，实际场景中不会采用）</li>
 </ol>
 <p>CMS 仅在 JDK 8 和 JDK 11 中支持，ZGC 在 JDK11 中为实验特性，在 JDK 17 中为正式产品，Shenandoah 在JDK 17 中为正式产品，Epsilon 在 JDK 11 和 JDK 17 中为实验特性。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZjM3NDc4NDE1NDQ0ZjE0NzU3NDJjZjFmZjczNjE2NTBfT2g3b01vUFo2WkdtV1Q4T29XV2E2YWVPelN1cUtNUzJfVG9rZW46RGdmNGIxcERwbzRTb3J4Q216VmNCQk1TbmtkXzE3MDAwMzM1NDU6MTcwMDAzNzE0NV9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175821783.png" alt="image-20231115175821783"></p>
 <h3 id="3-1-分代收集器"><a href="#3-1-分代收集器" class="headerlink" title="3.1. 分代收集器"></a>3.1. 分代收集器</h3><ul>
 <li><strong>ParNew：</strong> 一款多线程的收集器，采用复制算法，主要工作在 Young 区，可以通过 <code>-XX:ParallelGCThreads</code> 参数来控制收集的线程数，整个过程都是 STW 的，常与 CMS 组合使用。</li>
-<li><strong>CMS****：</strong> 以获取最短回收停顿时间为目标，采用「标记-清除」算法，分 4 大步进行垃圾收集，其中初始标记和重新标记会 STW ，多数应用于互联网站或者 B&#x2F;S 系统的服务器端上。虽然在 JDK9 被标记弃用，JDK14 被删除，<strong>但仍经常使用。</strong></li>
+<li><strong>CMS</strong>： 以获取最短回收停顿时间为目标，采用「标记-清除」算法，分 4 大步进行垃圾收集，其中初始标记和重新标记会 STW ，多数应用于互联网站或者 B&#x2F;S 系统的服务器端上。虽然在 JDK9 被标记弃用，JDK14 被删除，<strong>但仍经常使用。</strong></li>
 </ul>
 <h3 id="3-2-分区收集器"><a href="#3-2-分区收集器" class="headerlink" title="3.2. 分区收集器"></a>3.2. 分区收集器</h3><ul>
 <li><strong>G1：</strong> 一种服务器端的垃圾收集器，应用在多处理器和大容量内存环境中，在实现高吞吐量的同时，尽可能地满足垃圾收集暂停时间的要求。<strong>经常使用。</strong></li>
 <li><strong>ZGC：</strong> JDK11 中推出的一款低延迟垃圾回收器，适用于大内存低延迟服务的内存管理和回收，SPECjbb 2015 基准测试，在 128G 的大堆下，最大停顿时间才 1.68 ms，停顿时间远胜于 G1 和 CMS。<strong>近期也经常见到应用。</strong></li>
 <li><strong>Shenandoah：</strong> 由 Red Hat 的一个团队负责开发，与 G1 类似，基于 Region 设计的垃圾收集器，但不需要 Remember Set 或者 Card Table <em>（都是 G1 中的数据结构）</em>来记录跨 Region 引用，停顿时间和堆的大小没有任何关系。停顿时间与 ZGC 接近。</li>
 </ul>
-<h2 id="4-GC-异常的判断"><a href="#4-GC-异常的判断" class="headerlink" title="4. GC 异常的判断"></a>4. <strong>GC</strong> <strong>异常的判断</strong></h2><h3 id="4-1-评价标准"><a href="#4-1-评价标准" class="headerlink" title="4.1. 评价标准"></a>4.1. 评价标准</h3><p>这里引用美团技术团队的文章，美团在生产实践中发现如下指标比较重要：</p>
+<h2 id="4-GC-异常的判断"><a href="#4-GC-异常的判断" class="headerlink" title="4. GC 异常的判断"></a>4. GC 异常的判断</h2><h3 id="4-1-评价标准"><a href="#4-1-评价标准" class="headerlink" title="4.1. 评价标准"></a>4.1. 评价标准</h3><p>这里引用美团技术团队的文章，美团在生产实践中发现如下指标比较重要：</p>
 <ul>
 <li><strong>延迟（Latency）：</strong> 也可以理解为最大停顿时间，即垃圾收集过程中一次 STW 的最长时间，越短越好，一定程度上可以接受频次的增大，GC 技术的主要发展方向。</li>
-<li><strong>吞吐量<strong><strong>（</strong></strong>Throughput****）：</strong> 应用系统的生命周期内，由于 GC 线程会占用 Mutator 当前可用的 CPU 时钟周期，吞吐量即为 Mutator 有效花费的时间占系统总运行时间的百分比，例如系统运行了 100 min，GC 耗时 1 min，则系统吞吐量为 99%，吞吐量优先的收集器可以接受较长的停顿。</li>
+<li><strong>吞吐量（Throughput）：</strong> 应用系统的生命周期内，由于 GC 线程会占用 Mutator 当前可用的 CPU 时钟周期，吞吐量即为 Mutator 有效花费的时间占系统总运行时间的百分比，例如系统运行了 100 min，GC 耗时 1 min，则系统吞吐量为 99%，吞吐量优先的收集器可以接受较长的停顿。</li>
 </ul>
 <p>目前各大互联网公司的系统基本都更追求低延时，避免一次 GC 停顿的时间过长对用户体验造成损失，衡量指标需要结合一下应用服务的 SLA，主要如下两点来判断：</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NDJkMTk4MWIzYmNiMDRjMDY0NTI0ZDAzOGIxYWI0ZjFfRXl5YWJvVkNqNGlIeTVuVjZMMWZ5YkhFMDBtY3dpMk9fVG9rZW46QmFyemJTTW9Ub3dCdDF4dlVoS2NWNzNWbjJpXzE3MDAwMzM1NTk6MTcwMDAzNzE1OV9WNA" alt="img"></p>
-<p>简而言之，即为<strong>一次停顿的时间不超过应用服务的 TP9999，****GC</strong> *<em>的</em><em><strong>吞吐量</strong></em>*不小于 99.99%**。</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175939344.png" alt="image-20231115175939344"></p>
+<p>简而言之，即为**一次停顿的时间不超过应用服务的 TP9999，GC的吞吐量不小于 99.99%**。</p>
 <blockquote>
 <p>TP9999: 即 Top Percentile 99.99%，保证 99.99% 的网络服务可用的最低耗时</p>
 </blockquote>
@@ -269,10 +276,10 @@
 <p>重点需要关注的几个GC Cause：</p>
 <ul>
 <li><strong>System.gc()：</strong> 手动触发GC操作。</li>
-<li><strong>CMS****（如果使用的是 CMS 收集器的话）：</strong> CMS GC 在执行过程中的一些动作，重点关注 CMS Initial Mark 和 CMS Final Remark 两个 STW 阶段。</li>
+<li><strong>CMS（如果使用的是 CMS 收集器的话）：</strong> CMS GC 在执行过程中的一些动作，重点关注 CMS Initial Mark 和 CMS Final Remark 两个 STW 阶段。</li>
 <li><strong>Promotion Failure：</strong> Old 区没有足够的空间分配给 Young 区晋升的对象（即使总可用内存足够大，此处特指  CMS）。</li>
 <li><strong>Concurrent</strong> <strong>Mode Failure（如果使用的是</strong> <strong>CMS</strong> <strong>收集器的话）：</strong> CMS GC 运行期间，Old 区预留的空间不足以分配给新的对象，此时收集器会发生退化，严重影响 GC 性能。</li>
-<li><strong>GCLocker Initiated</strong> <strong>GC****：</strong> 如果线程执行在 JNI 临界区时，刚好需要进行 GC，此时 GC Locker 将会阻止 GC 的发生，同时阻止其他线程进入 JNI 临界区，直到最后一个线程退出临界区时触发一次 GC。</li>
+<li><strong>GCLocker Initiated GC</strong>： 如果线程执行在 JNI 临界区时，刚好需要进行 GC，此时 GC Locker 将会阻止 GC 的发生，同时阻止其他线程进入 JNI 临界区，直到最后一个线程退出临界区时触发一次 GC。</li>
 </ul>
 </blockquote>
 <h2 id="5-启示"><a href="#5-启示" class="headerlink" title="5. 启示"></a>5. 启示</h2><p>通过以上的基础调研，可以对 IoTDB JVM GC 监控系统的设计得出如下启示：</p>
@@ -282,12 +289,12 @@
 <ul>
 <li>期望大致效果如下：可以看到一段时间内应用 GC Cause 的集合以及 GC Duration 相关信息。</li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MjgyZTUxNTMwN2QyYWZiNmJiYzU0ZDhiNDQ5ZmM4ZTlfb0k2RzRmZ3E5VU9nbTFPVjNmUmF5OVJrOXhkaU8zOUNfVG9rZW46VWtmbGJ3ZHlvb056M1h4QkFyMWNtOWxBblFjXzE3MDAwMzM1Njc6MTcwMDAzNzE2N19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175800875.png" alt="image-20231115175800875"></p>
 <ol>
 <li>由于不同的 GC 收集器对内存的划分不同（对不同区域内存的行为也不同），因此需要针对不同 GC 收集器<strong>定制化 Memory usage 监控指标。</strong></li>
 <li>某些 GC 收集器包含 concurrent phase（具体可以查看【10.其他】）。由于它们的 concurrent phase 并不 stw，导致 JMX 的 <strong>GcInfo.getDuration()</strong> 的<strong>实际值比应用程序的停止时间更长</strong>（因为它们把并发阶段也算进去了）。因此对于某些特殊收集器（如涉及到并行 GC），需要<strong>定制化指标计算方式，防止指标计算失准。</strong></li>
 </ol>
-<h2 id="6-现有监控工具及框架"><a href="#6-现有监控工具及框架" class="headerlink" title="6. 现有监控工具及框架"></a>6. <strong>现有监控工具及框架</strong></h2><p>功能大同小异，主要是使用体验上的差别，此处不赘述，仅罗列以扫盲。</p>
+<h2 id="6-现有监控工具及框架"><a href="#6-现有监控工具及框架" class="headerlink" title="6. 现有监控工具及框架"></a>6. 现有监控工具及框架</h2><p>功能大同小异，主要是使用体验上的差别，此处不赘述，仅罗列以扫盲。</p>
 <h3 id="6-1-框架"><a href="#6-1-框架" class="headerlink" title="6.1. 框架"></a>6.1. 框架</h3><ul>
 <li>集成框架（内置 JVM GC 监控模块）Micormeter、Dropwizard</li>
 </ul>
@@ -300,7 +307,7 @@
 <p>本文参考了以上项目关注的指标和设计方法。部分项目在 Github 有源码，感兴趣的读者可自行查阅。</p>
 <h2 id="7-JMX-运行时指标收集工具"><a href="#7-JMX-运行时指标收集工具" class="headerlink" title="7. JMX - 运行时指标收集工具"></a>7. JMX - 运行时指标收集工具</h2><p>在实际的 Java 应用中，常常见到开发者通过添加 VM 参数<code>-XX:+PrintGC</code>、<code>-XX:+PrintHeapAtGC</code>等来获取 GC 相关信息。<strong>那么如何用代码的形式在运行时显式获取这些信息呢？</strong>答案是使用 <strong>JVM 提供的相应 api（JMX）。</strong></p>
 <p>我们可以利用 JMX 提供的一些钩子函数，获得我们想要的信息，<strong>理论上来说，通过 JMX，我们可以自己手搓<code>-XX:+PrintGC</code>等的相关功能</strong>。接下来以 GC Info 为例，详细介绍一下 JMX 的相关概念和快速使用。</p>
-<h3 id="7-1-什么是-JMX？"><a href="#7-1-什么是-JMX？" class="headerlink" title="7.1. 什么是 JMX？"></a>7.1. 什么是 <strong>JMX</strong>？</h3><blockquote>
+<h3 id="7-1-什么是-JMX？"><a href="#7-1-什么是-JMX？" class="headerlink" title="7.1. 什么是 JMX？"></a>7.1. 什么是 JMX？</h3><blockquote>
 <p>Java Management Extensions（<strong>JMX</strong>）技术是 Java SE 平台的标准功能，提供了一种简单的、标准的监控和管理资源的方式，对于如何定义一个资源给出了明确的结构和设计模式，主要用于监控和管理 Java 应用程序运行状态、设备和资源信息、Java 虚拟机运行情况等信息。 JMX 是可以动态的，所以也可以在资源创建、安装、实现时进行动态监控和管理，JDK 自带的 jconsole 就是使用 JMX 技术实现的监控工具。</p>
 </blockquote>
 <p>使用 JMX 技术时，通过定义一个被称为 <strong>MBean</strong> 或 <strong>MXBean</strong> 的 Java 对象来表示要管理指定的资源，然后可以把资源信息注册到 <strong>MBean Server</strong> 对外提供服务。MBean Server 充当了对外提供服务和对内管理 MBean 资源的代理功能，如此优雅的设计让 MBean 资源管理和 MBean Server 代理完全独立开，使之可以自由的控制 MBean 资源信息。</p>
@@ -382,9 +389,9 @@
 <p>实例：获得<a target="_blank" rel="noopener" href="https://so.csdn.net/so/search?q=%E5%A0%86%E5%86%85%E5%AD%98&spm=1001.2101.3001.7020">堆内存</a>和非堆内存的大小。</p>
 <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> String <span class="title function_">monitorMemory</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="type">StringBuilder</span> <span class="variable">sb</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">StringBuilder</span>(<span class="string">&quot;Memory:&quot;</span>);</span><br><span class="line">    </span><br><span class="line">        <span class="type">MemoryMXBean</span> <span class="variable">mmbean</span> <span class="operator">=</span> ManagementFactory.getMemoryMXBean();</span><br><span class="line">        <span class="type">MemoryUsage</span> <span class="variable">hmu</span> <span class="operator">=</span> mmbean.getHeapMemoryUsage();</span><br><span class="line">        sb.append(<span class="string">&quot;[HeapMemoryUsage:&quot;</span>);</span><br><span class="line">        sb.append(<span class="string">&quot; Used=&quot;</span> + formatBytes(hmu.getUsed()));</span><br><span class="line">        sb.append(<span class="string">&quot; Committed=&quot;</span> + formatBytes(hmu.getCommitted()));</span><br><span class="line">        sb.append(<span class="string">&quot;]&quot;</span>);</span><br><span class="line"> </span><br><span class="line">        <span class="type">MemoryUsage</span> <span class="variable">nhmu</span> <span class="operator">=</span> mmbean.getNonHeapMemoryUsage();</span><br><span class="line">        sb.append(<span class="string">&quot;[NonHeapMemoryUsage:&quot;</span>);</span><br><span class="line">        sb.append(<span class="string">&quot; Used=&quot;</span> + formatBytes(nhmu.getUsed()));</span><br><span class="line">        sb.append(<span class="string">&quot; Committed=&quot;</span> + formatBytes(nhmu.getCommitted()));</span><br><span class="line">        sb.append(<span class="string">&quot;]&quot;</span>);</span><br><span class="line"> </span><br><span class="line">        <span class="keyword">return</span> sb.toString();</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
 
-<ol>
+<ul>
 <li>我们甚至可以自己按需写一个 MBean 注册到 JMX 中，以供外部使用。<strong>（实际上在 IoTDB 中经常能够见到这样的应用）</strong></li>
-</ol>
+</ul>
 <p>MBean 的编写必须遵守 JMX 的设计规范，MBean 很像一个特殊的 Java Bean，它需要一个接口和一个实现类。MBean 资源接口总是以 MBean 或者 MXBean 结尾，实现类则要以接口去掉 MBean 或 MXBean 之后的名字来命名。</p>
 <p>MBean 资源需要注册到 MBean Server 进行代理才可以暴露给外部进行调用，所以我们想要通过远程管理我们自定义的 MyMemory 资源，需要先进行资源代理。</p>
 <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 获取 MBean Server</span></span><br><span class="line"><span class="type">MBeanServer</span> <span class="variable">platformMBeanServer</span> <span class="operator">=</span> ManagementFactory.getPlatformMBeanServer();</span><br><span class="line"><span class="comment">// 注册</span></span><br><span class="line"><span class="type">ObjectName</span> <span class="variable">objectName</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ObjectName</span>(MBeanName);</span><br><span class="line">platformMBeanServer.registerMBean(your_mbean, objectName);</span><br></pre></td></tr></table></figure>
@@ -483,7 +490,8 @@
 <li>需要对非代际 GC 和 分代 GC 分别监控</li>
 </ul>
 <p><strong>与 IoTDB 整合的实现效果：</strong></p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZTY5YWEzNDNhODQ3NmU3YWFhNDM1ZTBmNmNhNjc2ZjFfNjJQZ1pBNGptdTJ5ZFVzQUVwQVBneUYzd0t6MG01cnJfVG9rZW46SWd2bGJTRnk4b0tKMEx4TWZZbmN5cGgzbndlXzE3MDAwMzM1ODA6MTcwMDAzNzE4MF9WNA" alt="img"></p>
+<div align="center"><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175714192.png" alt="image-20231115175714192" style="zoom:50%;" /></div>
+
 <h3 id="8-2-pull-base"><a href="#8-2-pull-base" class="headerlink" title="8.2. pull base"></a>8.2. pull base</h3><blockquote>
 <p>参考：org.apache.hadoop.util.GcTimeMonitor</p>
 <p>IoTDB 实现类：</p>
@@ -512,8 +520,8 @@
 </ul>
 </blockquote>
 <p><strong>与 IoTDB 整合的实现效果：</strong></p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NmI5YmI4NTMwODM4M2UwNzgwZWE1ZmNkY2IxYWY1NWRfRVRFaHdRTWlzbEN0OFpQUjd3Q1N5bmY5aWM4VFUyZ3JfVG9rZW46TW1FR2JteTdnb1FHeVd4UzJxQWNLbmkxbldkXzE3MDAwMzM1OTM6MTcwMDAzNzE5M19WNA" alt="img"></p>
-<h3 id="8-3-测试方法"><a href="#8-3-测试方法" class="headerlink" title="8.3. 测试方法"></a>8.3. 测试方法</h3><p>IDEA 3c3d 环境下，在 IoTDB ConfigNode 和 DataNode 启动时开启一个添加内存的线程，并可以按需 System.gc()。通过观察日志和 <code>curl ``localhost:9091/metrics</code> 观察指标。以 ConfigNode 为例：</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175656708.png" alt="image-20231115175656708"></p>
+<h3 id="8-3-测试方法"><a href="#8-3-测试方法" class="headerlink" title="8.3. 测试方法"></a>8.3. 测试方法</h3><p>IDEA 3c3d（3个 ConfigNode、3个 DataNode） 环境下，在 IoTDB ConfigNode 和 DataNode 启动时开启一个添加内存的线程，并可以按需 System.gc()。通过观察日志和 <code>curl localhost:9091/metrics</code> 观察指标。以 IoTDB ConfigNode 为例：</p>
 <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">  LOGGER.info(</span><br><span class="line">      <span class="string">&quot;&#123;&#125; environment variables: &#123;&#125;&quot;</span>,</span><br><span class="line">      ConfigNodeConstant.GLOBAL_NAME,</span><br><span class="line">      ConfigNodeConfig.getEnvironmentVariables());</span><br><span class="line">  LOGGER.info(</span><br><span class="line">      <span class="string">&quot;&#123;&#125; default charset is: &#123;&#125;&quot;</span>,</span><br><span class="line">      ConfigNodeConstant.GLOBAL_NAME,</span><br><span class="line">      Charset.defaultCharset().displayName());</span><br><span class="line">  <span class="keyword">new</span> <span class="title class_">ConfigNodeCommandLine</span>().doMain(args);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">new</span> <span class="title class_">Thread</span>(</span><br><span class="line">          () -&gt; &#123;</span><br><span class="line">            List&lt;<span class="type">byte</span>[]&gt; byteList = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;&gt;();</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">100000</span>; i++) &#123;</span><br><span class="line">              <span class="type">byte</span>[] bytes = <span class="keyword">new</span> <span class="title class_">byte</span>[<span class="number">1024</span>];</span><br><span class="line">              byteList.add(bytes);</span><br><span class="line">              <span class="comment">// 可以手动 GC，也可以让系统自动 GC 直至 heap overflow</span></span><br><span class="line"><span class="comment">//              if (i % 10 == 0) &#123;</span></span><br><span class="line"><span class="comment">//                System.gc();</span></span><br><span class="line"><span class="comment">//              &#125;</span></span><br><span class="line">            &#125;</span><br><span class="line">          &#125;)</span><br><span class="line">      .start();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <h2 id="9-监控指标设计"><a href="#9-监控指标设计" class="headerlink" title="9. 监控指标设计"></a>9. 监控指标设计</h2><h3 id="9-1-push-base"><a href="#9-1-push-base" class="headerlink" title="9.1. push base"></a>9.1. push base</h3><table>
@@ -620,8 +628,8 @@
 <td>在指定时间窗口内，GC 时间所占的比例（类似吞吐量的概念）。若超过 threshold，进行告警<strong>（可选）</strong></td>
 </tr>
 </tbody></table>
-<h2 id="10-其他"><a href="#10-其他" class="headerlink" title="10. 其他"></a>10. <strong>其他</strong></h2><p>在实际场景中，<strong>G1 和</strong> <strong>CMS</strong> <strong>使用的较多</strong>，而 <strong>ZGC 作为<strong><strong>内存</strong></strong>不分代的新型<strong><strong>垃圾回收</strong></strong>器代表</strong>，也有必要被研究。尽管这些算法的具体执行细节难以监控追踪，但我们仍可以了解它们。这里做一个简单整理，更深入可以阅读资料或者查看 hotspot 源码。</p>
-<h3 id="10-1-CMS-经久不衰的常用回收器"><a href="#10-1-CMS-经久不衰的常用回收器" class="headerlink" title="10.1. CMS - 经久不衰的常用回收器"></a>10.1. <strong>CMS</strong> <strong>- 经久不衰的常用回收器</strong></h3><blockquote>
+<h2 id="10-其他"><a href="#10-其他" class="headerlink" title="10. 其他"></a>10. 其他</h2><p>在实际场景中，<strong>G1 和</strong> <strong>CMS</strong> <strong>使用的较多</strong>，而 <strong>ZGC 作为内存不分代的新型垃圾回收器代表</strong>，也有必要被研究。尽管这些算法的具体执行细节难以监控追踪，但我们仍可以了解它们。这里做一个简单整理，更深入可以阅读资料或者查看 hotspot 源码。</p>
+<h3 id="10-1-CMS-经久不衰的常用回收器"><a href="#10-1-CMS-经久不衰的常用回收器" class="headerlink" title="10.1. CMS - 经久不衰的常用回收器"></a>10.1. CMS - 经久不衰的常用回收器</h3><blockquote>
 <p>CMS（Concurrent Mark Sweep）垃圾回收器是第一个关注 GC 停顿时间的垃圾收集器。 在这之前的垃圾回收器，要么就是串行垃圾回收方式，要么就是关注系统吞吐量。这样的垃圾回收器对于强交互的程序很不友好，而 CMS 垃圾回收器的出现，则打破了这个尴尬的局面。因此，CMS 垃圾回收器诞生之后就受到了大家的欢迎，导致现在还有非常多的应用还在继续使用它。</p>
 </blockquote>
 <p>CMS 垃圾回收器之所以能够实现对 GC 停顿时间的控制，其本质来源于对「根可达算法」的改进，即三色标记算法。在 CMS 垃圾回收器出现之前，无论是 Serious 垃圾回收器，还是 ParNew 垃圾回收器，亦或是 Parallel Scavenge 垃圾回收器，他们在进行垃圾回收的时候都需要 Stop the World，即无法实现垃圾回收线程与用户线程并发执行。而 CMS 垃圾回收器通过<strong>三色标记算法，</strong>实现了垃圾回收线程<strong>与用户线程并发执行</strong>，从而极大地降低了系统响应时间，提高了强交互应用程序的体验。</p>
@@ -629,7 +637,7 @@
 <p>「白色」：该对象没有被标记过。（对象垃圾）</p>
 <p>「灰色」：该对象已经被标记过了，但该对象下的属性没有全被标记完。（GC 需要从此对象中去寻找垃圾）</p>
 <p>「黑色」：该对象已经被标记过了，且该对象下的属性也全部都被标记过了。（程序所需要的对象）</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NDAzMzNkNDZiZTU0YjBiMjIwNjA5MmVjODE0MjNlYmVfeVBtRjBXeE94T2hxQjU2WkFzZmc5ZHhUTEhDblpsUmZfVG9rZW46Q0k3SGJXd1lwb0lPZ3F4VVFaV2NCcGg2bk1jXzE3MDAwMzM2MDY6MTcwMDAzNzIwNl9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175630425.png" alt="image-20231115175630425"></p>
 <h5 id="10-1-2-算法流程"><a href="#10-1-2-算法流程" class="headerlink" title="10.1.2. 算法流程"></a>10.1.2. 算法流程</h5><p>从 GC Root 开始沿着他们的对象向下查找，用黑灰白的规则，标记出所有跟 GC Root 相连接的对象，扫描一遍结束后，一般需要进行一次短暂的 STW，再次进行扫描，此时因为黑色对象的属性都也已经被标记过了，所以只需找出灰色对象并顺着继续往下标记（且因为大部分的标记工作已经在第一次并发的时候发生了，所以灰色对象数量会很少，标记时间也会短很多）, 此时程序继续执行，GC 线程扫描所有的内存，找出扫描之后依旧被标记为白色的对象（垃圾）并清除。具体流程如下</p>
 <ol>
 <li>首先创建三个集合：白、灰、黑。</li>
@@ -648,23 +656,23 @@
 <ul>
 <li><strong>初始标记（CMS initial mark）</strong>，指的是寻找所有被 GCRoots 引用的对象，该阶段需要「Stop the World」。 这个步骤仅仅只是标记一下 GC Roots 能直接关联到的对象，并不需要做整个引用的扫描，因此速度很快。</li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NTEwZTdhNjkzMTFjYzEzN2E1YmVjMDQxNzk4NTVlYTFfSTI3V0JaQktRTUx0VzZxOTNVMzZjZHVXRG9TeE1zV0tfVG9rZW46TW1rMGI0TVlUb3p4UU94UTBncGNud1d1bkxnXzE3MDAwMzM2MTg6MTcwMDAzNzIxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175606653.png" alt="image-20231115175606653"></p>
 <ul>
 <li><strong>并发标记（CMS concurrent mark）</strong>，指的是对「初始标记阶段」标记的对象进行整个引用链的扫描，该阶段不需要「Stop the World」。 对整个引用链做扫描需要花费非常多的时间，因此通过垃圾回收线程与用户线程并发执行，可以降低垃圾回收的时间，从而降低系统响应时间。但这也带来了一些问题，即：并发标记的时候，引用可能发生变化，因此可能发生漏标（本应该被标记的对象，没有被正确地标记颜色，导致不应该回收的对象被回收）和多标（本不该被标记的对象，被错误地标记颜色，导致应该被回收的对象没有被回收）了。</li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OGViMDViNTNmMDM4ZjYyNjQ0YTE5NTg3NmEzYWFmNDFfTVVsMzBxRHBNSDJQU2J6WFlha0t6dEtUdWxMdlAwb0lfVG9rZW46RDA5RWI3TTN5bzgxRGJ4NVFycWN6RVJNbjdGXzE3MDAwMzM2MjU6MTcwMDAzNzIyNV9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175554390.png" alt="image-20231115175554390"></p>
 <ul>
 <li><strong>重新标记（CMS remark）</strong>，指的是对「并发标记」阶段出现的问题进行校正，该阶段需要「Stop the World」。 正如并发标记阶段说到的，由于垃圾回收算法和用户线程并发执行，虽然能降低响应时间，但是会发生漏标和多标的问题。所以对于 CMS 回收器来说，它需要这个阶段来做一些校验，解决并发标记阶段发生的问题。</li>
 <li><strong>并发清除（CMS concurrent sweep）</strong>，指的是将标记为垃圾的对象进行清除，该阶段不需要「Stop the World」。 在这个阶段，垃圾回收线程与用户线程可以并发执行，因此并不影响用户的响应时间。</li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZmNiOGU3MjBiNzI5MDYwYTAzNDNlYmM1MmJmN2UzNTRfamxUS1dkTjY1azRKWldYbHhTSndDVktQUmozYlUwdVJfVG9rZW46UVc1bWJUZWRzb1pUOVR4Y3RlbmMwUERFbjlmXzE3MDAwMzM2NTM6MTcwMDAzNzI1M19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175542197.png" alt="image-20231115175542197"></p>
 <p>从上面的描述步骤中我们可以看出：CMS 之所以能极大地降低 GC 停顿时间，本质上是将原本冗长的引用链扫描进行切分。通过 GC 线程与用户线程并发执行，加上重新标记校正的方式，减少了垃圾回收的时间。</p>
 <h3 id="10-2-G1-CMS-的替代者-Java-9-默认回收器"><a href="#10-2-G1-CMS-的替代者-Java-9-默认回收器" class="headerlink" title="10.2. G1 - CMS 的替代者 | Java 9 默认回收器"></a>10.2. G1 - CMS 的替代者 | Java 9 默认回收器</h3><h4 id="10-2-1-内存模型"><a href="#10-2-1-内存模型" class="headerlink" title="10.2.1. 内存模型"></a>10.2.1. 内存模型</h4><p>传统的 GC 收集器将连续的内存空间划分为新生代、老年代和永久代（JDK8 去除了永久代，引入了元空间 Metaspace），这种划分的特点是各代的存储地址（逻辑地址，下同）是连续的。如下图所示：</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MmZmMWQ1YWVhYzk5YzljMTk4NDMyMjZjODUwODIwZDBfMkZWZk0wczlRVm02VkJqUXFzdDZGTmlReExVVGg1ZVpfVG9rZW46U29PdmJtQUZBb1RpbzB4elZ5RmNUQUR3bndjXzE3MDAwMzM2NzQ6MTcwMDAzNzI3NF9WNA" alt="img"></p>
-<p>而G1的各代存储地址是<strong>不连续的</strong>，每一代都使用了 n 个不连续的<strong>大小相同</strong>的 Region，每个 Region 占有一块连续的虚拟内存地址（<strong>但<strong><strong>内存</strong></strong>仍是分代际的，只是分散在不连续的 Region 中</strong>）。如下图所示：</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MmI3MTg2NTY1NjZlZmZhODcyOGU2OWUxNWI0NDRlMDlfR3drc1RWZGJvR0Z2YlpCZTg3WjFEMmRCSjU5QlRDQWJfVG9rZW46T0tNYWJIVjZMb2dSb0x4UVF5UGNxa1RubkVjXzE3MDAwMzM2OTE6MTcwMDAzNzI5MV9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175528545.png" alt="image-20231115175528545"></p>
+<p>而G1的各代存储地址是<strong>不连续的</strong>，每一代都使用了 n 个不连续的<strong>大小相同</strong>的 Region，每个 Region 占有一块连续的虚拟内存地址（<strong>但内存仍是分代际的，只是分散在不连续的 Region 中</strong>）。如下图所示：</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175518344.png" alt="image-20231115175518344"></p>
 <p>这里为了帮助理解，再贴一张 CMS（传统收集器） 和 G1 的内存分布图：</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NTAwZWI0NGNiNjI3ZWFiOTExMDlkMmI0MWI3ZDcxNzZfemFOWEdEN2ozSkRPd21FS0NDSU11NlMyV0YxN0FXNVhfVG9rZW46SnpkQ2JmYnpob0p6WnF4eXVMUGN0N29vbmhiXzE3MDAwMzM2OTg6MTcwMDAzNzI5OF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175504522.png" alt="image-20231115175504522"></p>
 <p>在上面的图中，注意到还有一些 Region 标明了 H，它代表 Humongous，这表示这些 Region 存储的是巨大对象（humongous object，H-obj），即大小 ≥ region 一半的对象。H-obj 有如下几个特征：</p>
 <ul>
 <li>H-obj 直接分配到了 old gen，防止了反复拷贝移动。</li>
@@ -676,7 +684,7 @@
 </blockquote>
 <p>一个 Region 的大小可以通过参数<code> -XX:G1HeapRegionSize</code> 设定，取值范围从 1M 到 32M，且是2的指数。如果不设定，那么 G1 会根据 Heap 大小自动决定</p>
 <p>每一个分配的 Region，都可以分成两个部分，已分配的和未被分配的。它们之间的界限被称为 top。总体上来说，把一个对象分配到 Region 内，只需要简单增加 top 的值。这个做法实际上就是 bump-the-pointer。过程如下：</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OGE2N2IxMjBmMTg1ZDEwZTFlZTgwYjA0YTE2YzRiNDhfVzVDT2NFNFRMeFNYNm9QVWZYVkJQRzMwcjlxdm9YT0ZfVG9rZW46WWNPTmIxdU91bzM3czB4Smp0eWNFZVgxbkloXzE3MDAwMzM3MDQ6MTcwMDAzNzMwNF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175448522.png" alt="image-20231115175448522"></p>
 <p>Region 可以说是 G1 回收器一次回收的最小单元。即每一次回收都是回收 N 个 Region。这个 N 是多少，主要受到 G1 回收的效率和用户设置的<strong>软实时目标</strong><em>（用户可以指定<strong>垃圾回收</strong>时间的限时，G1会努力在这个时限内完成垃圾回收，但是G1并不担保每次都能在这个时限内完成垃圾回收。通过设定一个合理的目标，可以让达到90%以上的垃圾回收时间都在这个时限内。）</em>有关。每一次的回收，G1 会选择可能回收最多垃圾的 Region 进行回收。与此同时，G1 回收器会维护一个空间 Region 的链表。每次回收之后的 Region 都会被加入到这个链表中。</p>
 <h4 id="10-2-2-GC-模式"><a href="#10-2-2-GC-模式" class="headerlink" title="10.2.2. GC 模式"></a>10.2.2. GC 模式</h4><p>G1提供了两种GC模式，<strong>Young GC</strong> 和 <strong>Mixed GC</strong>，两种都是完全 Stop The World 的，下面依次简单介绍：</p>
 <blockquote>
@@ -727,15 +735,15 @@
                              gc_cause);
   // 真正的停顿方法在 VMThread::execute(&amp;op) 中
   VMThread::execute(&amp;op);
-                                    
+                                          
   HeapWord* result = op.result();
   bool ret_succeeded = op.prologue_succeeded() &amp;&amp; op.pause_succeeded();
-                                    
+                                          
   *succeeded = ret_succeeded;
-                                    
+                                          
   return result;
 &#125;
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">4. do_collection_pause 会在 VMThread::execute(&amp;op) 里会产生停顿，再来看这个方法：</span><br><span class="line">5. ```C++</span><br><span class="line">   void VMThread::execute(VM_Operation* op) &#123;</span><br><span class="line">     Thread* t = Thread::current();</span><br><span class="line">     // 判断当前线程是否是 vm 线程</span><br><span class="line">     if (!t-&gt;is_VM_thread()) &#123;</span><br><span class="line">       // 跳过这里，其实这里的逻辑是当前不是 vm 线程是 java 线程或者 watcher 线程</span><br><span class="line">       // 会先将任务放到一个 queue 中，之后再执行</span><br><span class="line">       ......</span><br><span class="line">     &#125; else &#123;</span><br><span class="line">       // 如果是 vm 线程则会进入这里</span><br><span class="line">       ......</span><br><span class="line">       HandleMark hm(t);</span><br><span class="line">       _cur_vm_operation = op;</span><br><span class="line">       // 判断任务是否需要在安全点执行且当前是否在安全点</span><br><span class="line">       if (op-&gt;evaluate_at_safepoint() &amp;&amp; !SafepointSynchronize::is_at_safepoint()) &#123;</span><br><span class="line">         // 如果不是安全点,则等待所有线程进入安全点,然后把线程暂时挂起</span><br><span class="line">         // 这个类中有个状态 _state,所有 java 线程转换线程状态时会去判断这个状态然后</span><br><span class="line">         // 决定是否 block</span><br><span class="line">         SafepointSynchronize::begin();</span><br><span class="line">         // 开始任务, op 是刚刚传入的 VM_G1IncCollectionPause 操作任务类</span><br><span class="line">         // evaluate() 方法最后会调用 gc 操作任务类的 doit() 方法</span><br><span class="line">         op-&gt;evaluate();</span><br><span class="line">         // 安全点结束</span><br><span class="line">         SafepointSynchronize::end();</span><br><span class="line">       &#125; else &#123;</span><br><span class="line">         // 是安全点则直接执行</span><br><span class="line">         op-&gt;evaluate();</span><br><span class="line">       &#125;</span><br><span class="line">                                       </span><br><span class="line">       if (op-&gt;is_cheap_allocated()) delete op;</span><br><span class="line">                                       </span><br><span class="line">       _cur_vm_operation = prev_vm_operation;</span><br><span class="line">     &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">4. do_collection_pause 会在 VMThread::execute(&amp;op) 里会产生停顿，再来看这个方法：</span><br><span class="line">5. ```C++</span><br><span class="line">   void VMThread::execute(VM_Operation* op) &#123;</span><br><span class="line">     Thread* t = Thread::current();</span><br><span class="line">     // 判断当前线程是否是 vm 线程</span><br><span class="line">     if (!t-&gt;is_VM_thread()) &#123;</span><br><span class="line">       // 跳过这里，其实这里的逻辑是当前不是 vm 线程是 java 线程或者 watcher 线程</span><br><span class="line">       // 会先将任务放到一个 queue 中，之后再执行</span><br><span class="line">       ......</span><br><span class="line">     &#125; else &#123;</span><br><span class="line">       // 如果是 vm 线程则会进入这里</span><br><span class="line">       ......</span><br><span class="line">       HandleMark hm(t);</span><br><span class="line">       _cur_vm_operation = op;</span><br><span class="line">       // 判断任务是否需要在安全点执行且当前是否在安全点</span><br><span class="line">       if (op-&gt;evaluate_at_safepoint() &amp;&amp; !SafepointSynchronize::is_at_safepoint()) &#123;</span><br><span class="line">         // 如果不是安全点,则等待所有线程进入安全点,然后把线程暂时挂起</span><br><span class="line">         // 这个类中有个状态 _state,所有 java 线程转换线程状态时会去判断这个状态然后</span><br><span class="line">         // 决定是否 block</span><br><span class="line">         SafepointSynchronize::begin();</span><br><span class="line">         // 开始任务, op 是刚刚传入的 VM_G1IncCollectionPause 操作任务类</span><br><span class="line">         // evaluate() 方法最后会调用 gc 操作任务类的 doit() 方法</span><br><span class="line">         op-&gt;evaluate();</span><br><span class="line">         // 安全点结束</span><br><span class="line">         SafepointSynchronize::end();</span><br><span class="line">       &#125; else &#123;</span><br><span class="line">         // 是安全点则直接执行</span><br><span class="line">         op-&gt;evaluate();</span><br><span class="line">       &#125;</span><br><span class="line">                                             </span><br><span class="line">       if (op-&gt;is_cheap_allocated()) delete op;</span><br><span class="line">                                             </span><br><span class="line">       _cur_vm_operation = prev_vm_operation;</span><br><span class="line">     &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
 </code></pre>
 </li>
 <li><p>该方法会判断线程是否都进入安全区（安全区概念参考：<a target="_blank" rel="noopener" href="https://www.zhihu.com/question/371699670%EF%BC%8C%E8%AF%A5%E9%97%AE%E9%A2%98%E9%AB%98%E8%B5%9E%E5%9B%9E%E7%AD%94%E6%AF%94%E8%BE%83%E5%85%A8%E9%9D%A2%E7%9A%84%E9%98%90%E8%BF%B0%E4%BA%86%E5%AE%89%E5%85%A8%E5%8C%BA%E7%9A%84%E6%A6%82%E5%BF%B5%EF%BC%8C%E6%8C%BA%E5%8F%97%E7%94%A8%E7%9A%84%EF%BC%89%EF%BC%8C%E5%A6%82%E6%98%AF%EF%BC%8C%E6%89%A7%E8%A1%8C">https://www.zhihu.com/question/371699670，该问题高赞回答比较全面的阐述了安全区的概念，挺受用的），如是，执行</a> op-&gt;evaluate() 以 stw。实际上，<strong>SafepointSynchronize::begin() 方法内包括了准备进入安全点到所有 java 线程 Block 的过程，此时 Young</strong> <strong>GC</strong> <strong>的全局停顿开始了</strong>。因此，Young GC 是 stw 的。</p>
@@ -767,7 +775,7 @@
 <p>上文中，多次提到了<strong>「global</strong> <strong>concurrent</strong> <strong>marking」</strong>，它的执行过程类似 CMS，但是不同的是，在 G1 GC 中，它主要是为 Mixed GC 提供标记服务的，并不是一次 GC 过程的一个必须环节。global concurrent marking 的执行过程分为四个步骤：</p>
 <ol>
 <li><strong>初始标记（initial mark，STW）</strong>。它标记了从 GC Root 开始直接可达的对象。</li>
-<li><strong>并发标记（****Concurrent</strong> <strong>Marking）</strong>。这个阶段从 GC Root 开始对 heap 中的对象标记，标记线程与应用程序线程并行执行，并且收集各个 Region 的存活对象信息。 </li>
+<li><strong>并发标记（Concurrent Marking）</strong>。这个阶段从 GC Root 开始对 heap 中的对象标记，标记线程与应用程序线程并行执行，并且收集各个 Region 的存活对象信息。 </li>
 <li><strong>重新标记（Remark，STW）</strong>。标记那些在并发标记阶段发生变化的对象，将被回收。</li>
 <li><strong>清除垃圾（Cleanup）</strong>。清除空 Region（没有存活对象的），加入到 free list。</li>
 </ol>
@@ -794,10 +802,10 @@
 <li>中型 Region（Medium Region）：容量固定为32MB，用于放置大于256KB但是小于4MB的对象。</li>
 <li>大型 Region（Large Region）：容量不固定，可以动态变化，但必须为2MB的整数倍，用于放置4MB或以上的大对象。每个大型 Region 中会存放一个大对象，这也预示着虽然名字叫“大型 Region”，但它的实际容量完全有可能小于中型 Region，最小容量可低至4MB。大型 Region 在 ZGC 的实现中是不会被重分配的（重分配是ZGC的一种处理动作，用于复制对象的收集器阶段）因为复制大对象的代价非常高。</li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=N2FmNjE5NTU2YWUyZTRlNGUwYjBhNWJjZjY1OWZiOTdfRTRDYXlSdURDVXBaaTN5ejRxR1QzeUhhc2VqdDBqWUhfVG9rZW46VzV2V2J4ZGdob0JmdHF4WWRGVGNzRUd5bnlkXzE3MDAwMzM3MTY6MTcwMDAzNzMxNl9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175430186.png" alt="image-20231115175430186"></p>
 <p>与 CMS 中的 ParNew 和 G1 类似，ZGC 也采用「标记-复制」算法，不过 ZGC 对该算法做了重大改进：ZGC 在标记、转移和重定位阶段几乎都是并发的，这是 ZGC 实现停顿时间小于10ms目标的最关键原因。</p>
 <p>ZGC 垃圾回收周期如下图所示：</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZTllNGVhNmU4MzdhNmVhY2Y0Yjc4NmZmMzU4OTJhZTZfSW5xZUVqbHpRTGttYjdVRGNkZ3ZpTkxkYVR5YWVJVm1fVG9rZW46UUM1VWJkajhab1hOTnB4S0VaZmNXbDJXbmliXzE3MDAwMzM3MjQ6MTcwMDAzNzMyNF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175414710.png" alt="image-20231115175414710"></p>
 <p>ZGC只有三个STW阶段：<strong>初始标记</strong>，<strong>再标记</strong>，<strong>初始转移</strong>。其中，初始标记和初始转移分别都只需要扫描所有 GC Roots，其处理时间和 GC Roots 的数量成正比，一般情况耗时非常短；再标记阶段 STW 时间很短，最多1ms，超过1ms则再次进入并发标记阶段。即，ZGC 几乎所有暂停都只依赖于 GC Roots 集合大小，停顿时间不会随着堆的大小或者活跃对象的大小而增加。与 ZGC 对比，G1 的转移阶段完全 STW 的，且停顿时间随存活对象的大小增加而增加。</p>
 <p>Java 实测打印 ZGC 的内存池结果如下：</p>
 <figure class="highlight java"><table><tr><td class="code"><pre><span class="line">CodeHeap <span class="string">&#x27;non-nmethods&#x27;</span></span><br><span class="line">Metaspace</span><br><span class="line">ZHeap</span><br><span class="line">CodeHeap <span class="string">&#x27;profiled nmethods&#x27;</span></span><br><span class="line">Compressed Class Space</span><br><span class="line">CodeHeap <span class="string">&#x27;non-profiled nmethods&#x27;</span></span><br></pre></td></tr></table></figure>
@@ -808,11 +816,11 @@
 <p>着色指针是一种将信息存储在指针中的技术。</p>
 </blockquote>
 <p>ZGC仅支持64位系统，它把64位虚拟地址空间划分为多个子空间，如下图所示：</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MzA1MDU4ZDZjODY1YmIyZGM2NTQ1MGI1ZjQxNWFiMDJfaHdldTRxU3A4aUhFb2tHekw3YU5JR24yd2o1Y3g1WjlfVG9rZW46QzIzbmJjVGgxb0szU214OUczNWNCSU91bkVjXzE3MDAwMzM3MzA6MTcwMDAzNzMzMF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175350372.png" alt="image-20231115175350372"></p>
 <p>其中，[0~4TB) 对应Java堆，[4TB ~ 8TB) 称为 M0 地址空间，[8TB ~ 12TB) 称为 M1 地址空间，[12TB ~ 16TB) 预留未使用，[16TB ~ 20TB) 称为 Remapped 空间。</p>
 <p>当应用程序创建对象时，首先在堆空间申请一个虚拟地址，但该虚拟地址并不会映射到真正的物理地址。ZGC 同时会为该对象在 M0、M1 和 Remapped 地址空间分别申请一个虚拟地址，且这三个虚拟地址对应同一个物理地址，但<strong>这三个空间在同一时间有且只有一个空间有效</strong>。ZGC之所以设置三个虚拟地址空间，是因为它使用“空间换时间”思想，去降低 GC 停顿时间。“空间换时间”中的空间是虚拟空间，而不是真正的物理空间。后面将详细介绍这三个空间的切换过程。</p>
 <p>与上述地址空间划分相对应，ZGC 实际仅使用64位地址空间的第0<del>41位，而第42</del>45位存储元数据，第47~63位固定为0。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZTc0MGFkMGI0YjQzMjFiNzBkZDI3NjM5NTc2NzdhMmNfbWlRY2VZV3VXQWpKVXdQRmNwckhsMXIxRUZmRGE4SW5fVG9rZW46STl6MGJMUjZ3b25wNkl4aVZTS2NURmtXbmhoXzE3MDAwMzM3MzY6MTcwMDAzNzMzNl9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175338597.png" alt="image-20231115175338597"></p>
 <p>ZGC将对象存活信息存储在42~45位中，这与传统的垃圾回收并将对象存活信息放在对象头中完全不同。</p>
 <p><strong>读屏障</strong></p>
 <blockquote>
@@ -830,11 +838,11 @@
 </ul>
 <p>其实，在标记阶段存在两个地址视图 M0 和 M1，上面的过程显示只用了一个地址视图。之所以设计成两个，是为了区别前一次标记和当前标记。也即，第二次进入并发标记阶段后，地址视图调整为 M1，而非M0。</p>
 <p>着色指针和读屏障技术不仅应用在并发转移阶段，还应用在并发标记阶段：将对象设置为已标记，传统的垃圾回收器需要进行一次内存访问，并将对象存活信息放在对象头中；而在 ZGC 中，只需要设置指针地址的第42~45位即可，并且因为是寄存器访问，所以速度比访问内存更快。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NzA4NDI4NmQ1ZDliMDdhNzg3OWNhYjRiNzEyN2FlZjlfOWpOaUltZzdKcXpCTzUwcGRvMko2cTI3MkJpSFFtRGtfVG9rZW46RDlQZGIwcmRHb0VwMDF4S3ZPZWNYV1FDblBnXzE3MDAwMzM3NDM6MTcwMDAzNzM0M19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175323045.png" alt="image-20231115175323045"></p>
 <h3 id="10-4-其他分享"><a href="#10-4-其他分享" class="headerlink" title="10.4. 其他分享"></a>10.4. 其他分享</h3><h4 id="10-4-1-如何调试-GC-的-notification-线程？"><a href="#10-4-1-如何调试-GC-的-notification-线程？" class="headerlink" title="10.4.1. 如何调试 GC 的 notification 线程？"></a>10.4.1. 如何调试 GC 的 notification 线程？</h4><p>JDK 8、11 的 notification 是 Service Thread 在做，这个 Thread 不能被 idea 捕获，无法正常调试；</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NjhiMTQ2OTE4NjQyMTJjOWYwN2YyN2UyNzdlMDdjMzhfb1NUbmE2TGZmSklGZ0NvdjlYRTdTNG9vNUhreGVIdTdfVG9rZW46Q3daUWJXNVRBbzZvMjB4WlVidWNyckp1bjdoXzE3MDAwMzM3NTE6MTcwMDAzNzM1MV9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175301099.png" alt="image-20231115175301099"></p>
 <p>解决：JDK 17 里 notification 的 handle 由 Notification Thread 负责，可以被 idea 捕获，把 JDK 换成 17 之后就可以切换到 Notification Thread 调试 handleNotification </p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=YTdjZWU3ZmNiNzg2NWMyNTljNTVmZjRmNTI2N2FjMmNfN0JlMFNQcGJ5N2tXbG8zOEc1cUFxWUJ5VEVwS2hKTzBfVG9rZW46TlRkVmJ3Wms0b1pWR0d4aFBweWNsb3BOblRjXzE3MDAwMzM3NTc6MTcwMDAzNzM1N19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175243105.png" alt="image-20231115175243105"></p>
 <h4 id="10-4-2-GC-使用参数"><a href="#10-4-2-GC-使用参数" class="headerlink" title="10.4.2. GC 使用参数"></a>10.4.2. GC 使用参数</h4><table>
 <thead>
 <tr>
@@ -876,7 +884,8 @@
 </tr>
 </tbody></table>
 <p>IDEA 使用：在 VM options 添加即可</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MWY1NTI4MmUxODllMTQxOWQxMDk1OGZlYWZkZTNlMDRfbmNTYlJab2R6TlJ5aUZicXM1NDFMZWFneTVhUG1paXBfVG9rZW46R2RLQWJFUnpMb1A2SkN4UjhsSmNRRDVlblplXzE3MDAwMzM5MTE6MTcwMDAzNzUxMV9WNA" alt="img"></p>
+<div align="center"><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175206555.png" alt="image-20231115175206555" style="zoom:60%;" /></div>
+
 <h4 id="10-4-3-JMX-可以监控-G1-的-mixed-GC-吗？"><a href="#10-4-3-JMX-可以监控-G1-的-mixed-GC-吗？" class="headerlink" title="10.4.3. JMX 可以监控 G1 的 mixed GC 吗？"></a>10.4.3. JMX 可以监控 G1 的 mixed GC 吗？</h4><p>不能。实验过程如下：</p>
 <p><strong>可以看到，对于同一次 GC，JVM自带的 GC log 显示是 mixed GC，但 JMX 显示为 minor GC。</strong></p>
 <ul>
@@ -891,7 +900,7 @@
 <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 测试代码</span></span><br><span class="line"><span class="keyword">new</span> <span class="title class_">Thread</span>(</span><br><span class="line">        () -&gt; &#123;</span><br><span class="line">          <span class="comment">// manually add heap usage</span></span><br><span class="line">          List&lt;<span class="type">byte</span>[]&gt; byteList = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;&gt;();</span><br><span class="line">          <span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line">          <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (i % <span class="number">10000</span> == <span class="number">0</span>) &#123;</span><br><span class="line">              <span class="keyword">try</span> &#123;</span><br><span class="line">              <span class="comment">// 为了尽量少的触发 Full GC 而触发 mixed GC，需要减缓内存消耗速度</span></span><br><span class="line">                Thread.sleep(TimeUnit.MILLISECONDS.toMillis(<span class="number">100</span>));</span><br><span class="line">              &#125; <span class="keyword">catch</span> (InterruptedException ie) &#123;</span><br><span class="line">                <span class="keyword">return</span>;</span><br><span class="line">              &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="type">byte</span>[] bytes = <span class="keyword">new</span> <span class="title class_">byte</span>[<span class="number">1024</span>];</span><br><span class="line">            byteList.add(bytes);</span><br><span class="line">            i++;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;)</span><br><span class="line">    .start();</span><br></pre></td></tr></table></figure>
 </blockquote>
 <h4 id="10-4-4-Duration-的计算准确性"><a href="#10-4-4-Duration-的计算准确性" class="headerlink" title="10.4.4. Duration 的计算准确性"></a>10.4.4. Duration 的计算准确性</h4><p>这里贴一个详细的例子来说明：涉及并发 GC 时，JMX notification 提供的 duration 比实际 duration 大。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NzJjYzE2NTkzZmI3ZDY2MWU5NTU3NWY0ODdjYWQwNWFfam4zeUJPc0s5ZnI3NWpjRG1OOEtjZXhZSTBsOUFaT2pfVG9rZW46QndiYmJwQzhSb1RsY0Z4ODg2cWMzUnFKbjViXzE3MDAwMzM4MTU6MTcwMDAzNzQxNV9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175146661.png" alt="image-20231115175146661"></p>
 <figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">[GC pause (G1 Evacuation Pause) (mixed), <span class="number">0.0162640</span> secs]</span><br><span class="line">   [Parallel <span class="type">Time</span>: <span class="number">15.6</span> ms, GC Workers: <span class="number">9</span>]</span><br><span class="line">      [GC Worker <span class="keyword">Start</span> (ms): Min: <span class="number">9212.1</span>, Avg: <span class="number">9214.5</span>, Max: <span class="number">9215.2</span>, Diff: <span class="number">3.1</span>]</span><br><span class="line">      [Ext Root Scanning (ms): Min: <span class="number">0.0</span>, Avg: <span class="number">0.1</span>, Max: <span class="number">0.6</span>, Diff: <span class="number">0.6</span>, Sum: <span class="number">0.6</span>]</span><br><span class="line">      [<span class="keyword">Update</span> RS (ms): Min: <span class="number">0.9</span>, Avg: <span class="number">2.0</span>, Max: <span class="number">3.2</span>, Diff: <span class="number">2.2</span>, Sum: <span class="number">18.0</span>]</span><br><span class="line">         [Processed Buffers: Min: <span class="number">1</span>, Avg: <span class="number">2.1</span>, Max: <span class="number">4</span>, Diff: <span class="number">3</span>, Sum: <span class="number">19</span>]</span><br><span class="line">      [Scan RS (ms): Min: <span class="number">0.0</span>, Avg: <span class="number">0.1</span>, Max: <span class="number">0.3</span>, Diff: <span class="number">0.3</span>, Sum: <span class="number">1.1</span>]</span><br><span class="line">      [Code Root Scanning (ms): Min: <span class="number">0.0</span>, Avg: <span class="number">0.0</span>, Max: <span class="number">0.0</span>, Diff: <span class="number">0.0</span>, Sum: <span class="number">0.0</span>]</span><br><span class="line">      [Object <span class="keyword">Copy</span> (ms): Min: <span class="number">9.3</span>, Avg: <span class="number">10.2</span>, Max: <span class="number">10.7</span>, Diff: <span class="number">1.4</span>, Sum: <span class="number">92.0</span>]</span><br><span class="line">      [Termination (ms): Min: <span class="number">0.0</span>, Avg: <span class="number">0.4</span>, Max: <span class="number">0.5</span>, Diff: <span class="number">0.5</span>, Sum: <span class="number">3.3</span>]</span><br><span class="line">         [Termination Attempts: Min: <span class="number">1</span>, Avg: <span class="number">449.8</span>, Max: <span class="number">606</span>, Diff: <span class="number">605</span>, Sum: <span class="number">4048</span>]</span><br><span class="line">      [GC Worker Other (ms): Min: <span class="number">0.0</span>, Avg: <span class="number">0.0</span>, Max: <span class="number">0.1</span>, Diff: <span class="number">0.1</span>, Sum: <span class="number">0.4</span>]</span><br><span class="line">      [GC Worker Total (ms): Min: <span class="number">12.2</span>, Avg: <span class="number">12.8</span>, Max: <span class="number">15.2</span>, Diff: <span class="number">3.1</span>, Sum: <span class="number">115.4</span>]</span><br><span class="line">      [GC Worker <span class="keyword">End</span> (ms): Min: <span class="number">9227.3</span>, Avg: <span class="number">9227.3</span>, Max: <span class="number">9227.4</span>, Diff: <span class="number">0.1</span>]</span><br><span class="line">   [Code Root Fixup: <span class="number">0.0</span> ms]</span><br><span class="line">   [Code Root Purge: <span class="number">0.0</span> ms]</span><br><span class="line">   [Clear CT: <span class="number">0.1</span> ms]</span><br><span class="line">   [Other: <span class="number">0.5</span> ms]</span><br><span class="line">      [Choose CSet: <span class="number">0.0</span> ms]</span><br><span class="line">      [<span class="keyword">Ref</span> Proc: <span class="number">0.2</span> ms]</span><br><span class="line">      [<span class="keyword">Ref</span> Enq: <span class="number">0.0</span> ms]</span><br><span class="line">      [Redirty Cards: <span class="number">0.1</span> ms]</span><br><span class="line">      [Humongous Register: <span class="number">0.1</span> ms]</span><br><span class="line">      [Humongous Reclaim: <span class="number">0.0</span> ms]</span><br><span class="line">      [<span class="keyword">Free</span> CSet: <span class="number">0.0</span> ms]</span><br><span class="line">   [Eden: <span class="number">38912.0</span>K(<span class="number">38912.0</span>K)<span class="operator">-</span><span class="operator">&gt;</span><span class="number">0.0</span>B(<span class="number">40960.0</span>K) Survivors: <span class="number">6144.0</span>K<span class="operator">-</span><span class="operator">&gt;</span><span class="number">6144.0</span>K Heap: <span class="number">880.2</span>M(<span class="number">886.0</span>M)<span class="operator">-</span><span class="operator">&gt;</span><span class="number">882.2</span>M(<span class="number">928.0</span>M)]</span><br><span class="line"> [Times: <span class="keyword">user</span><span class="operator">=</span><span class="number">0.08</span> sys<span class="operator">=</span><span class="number">0.02</span>, <span class="type">real</span><span class="operator">=</span><span class="number">0.02</span> secs] </span><br><span class="line"><span class="number">10</span>:<span class="number">48</span>:<span class="number">58.092</span> [Service Thread] INFO org.apache.iotdb.metrics.jvm.GCListenerTest <span class="operator">-</span> <span class="keyword">end</span> <span class="keyword">of</span> minor GC</span><br><span class="line"><span class="number">10</span>:<span class="number">48</span>:<span class="number">58.092</span> [Service Thread] INFO org.apache.iotdb.metrics.jvm.GCListenerTest <span class="operator">-</span> minor GC: <span class="operator">-</span> <span class="number">41</span> (G1_Evacuation_Pause) <span class="keyword">start</span>: <span class="number">2023</span><span class="number">-07</span><span class="number">-26</span> <span class="number">10</span>:<span class="number">48</span>:<span class="number">58.074</span>, <span class="keyword">end</span>: <span class="number">2023</span><span class="number">-07</span><span class="number">-26</span> <span class="number">10</span>:<span class="number">48</span>:<span class="number">58.091</span></span><br><span class="line"><span class="number">10</span>:<span class="number">48</span>:<span class="number">58.092</span> [Service Thread] INFO org.apache.iotdb.metrics.jvm.GCListenerTest <span class="operator">-</span> duration:<span class="number">17</span>ms, throughput:<span class="number">96.4</span><span class="operator">%</span></span><br></pre></td></tr></table></figure>
 
 <p>可以看到：这里发生了 mixed GC，有部分 old genertaion 内存被回收。由于 old generation 的回收有一部分 phase 和用户线程并发，这里 JMX notification 提供的 duration 17ms 大于实际的 duration（GC log 打印）16.2ms。</p>
@@ -906,9 +915,9 @@
 </ul>
 <p>接下来看看为什么 GarbageCollectorMXBean 的 getCollectionTime() 方法获取的是准确的 stw 时间。</p>
 <p>首先来看看 java 上该方法的签名：</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MTk2YjgzYTMyY2Q1NDk0ODFkNjJmOGQ3MTkxZjIyYTVfZ2pLSkt4RXFVZk1Ud05ESXkzbzUzZGR5akRwY0hscTFfVG9rZW46VWtkbGJBNmRWb0dmMnB4NTZCd2NWYU9nbjFHXzE3MDAwMzM4MjI6MTcwMDAzNzQyMl9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175127154.png" alt="image-20231115175127154"></p>
 <p>深入 getCollectionTime()，发现是 native 方法</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NWQzZDUwYmI3NTc2ODNlN2IzZTRlODA3NjcxODA0YzhfQWZHbUxCemdISFdBcGV1QzRJV2thNkdsdVZOVU1ESUlfVG9rZW46T011bWJGcUFLb2lrdFd4bGpJUmNWRmx1bm9iXzE3MDAwMzM4Mjk6MTcwMDAzNzQyOV9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175112530.png" alt="image-20231115175112530"></p>
 <p>查看 openjdk 源码，native 方法签名如下：</p>
 <figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="function">JNIEXPORT jlong JNICALL <span class="title">Java_sun_management_GarbageCollectorImpl_getCollectionTime</span></span></span><br><span class="line"><span class="function">  <span class="params">(JNIEnv *env, jobject mgr)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> jmm_interface-&gt;<span class="built_in">GetLongAttribute</span>(env, mgr, JMM_GC_TIME_MS);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -936,7 +945,7 @@
 <figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">VM_G1PauseConcurrent::doit</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="function">GCIdMark <span class="title">gc_id_mark</span><span class="params">(_gc_id)</span></span>;</span><br><span class="line">  G1CollectedHeap* g1h = G1CollectedHeap::<span class="built_in">heap</span>();</span><br><span class="line">  <span class="function">GCTraceCPUTime <span class="title">tcpu</span><span class="params">(g1h-&gt;concurrent_mark()-&gt;gc_tracer_cm())</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// GCTraceTime(...) only supports sub-phases, so a more verbose version</span></span><br><span class="line">  <span class="comment">// is needed when we report the top-level pause phase.</span></span><br><span class="line">  <span class="built_in">GCTraceTimeLogger</span>(Info, gc) <span class="built_in">logger</span>(_message, GCCause::_no_gc, <span class="literal">true</span>);</span><br><span class="line">  <span class="function">GCTraceTimePauseTimer       <span class="title">timer</span><span class="params">(_message, g1h-&gt;concurrent_mark()-&gt;gc_timer_cm())</span></span>;</span><br><span class="line">  <span class="function">GCTraceTimeDriver           <span class="title">t</span><span class="params">(&amp;logger, &amp;timer)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="function">G1ConcGCMonitoringScope <span class="title">monitoring_scope</span><span class="params">(g1h-&gt;monitoring_support())</span></span>;</span><br><span class="line">  <span class="function">SvcGCMarker <span class="title">sgcm</span><span class="params">(SvcGCMarker::CONCURRENT)</span></span>;</span><br><span class="line">  IsGCActiveMark x;</span><br><span class="line"></span><br><span class="line">  <span class="built_in">work</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p>我们来看一下 VM_G1PauseConcurrent::doit() 干了什么。doit() 是 VM_G1PauseConcurrent 的入口方法，而 VM_G1PauseConcurrent 是 concurrent G1 stw 的 operations。这点源码也通过注释解释的很清楚了。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=M2RkZTk1ZDY5M2EzZmRjMWQ4NTMyYTRhNWQzZjg3NmNfRHpDVmljbTJWdWRLRWdIZDAxNmlSTG5tMzM3cWhGSzNfVG9rZW46R1R0MGJ5V2FFbzd2UVd4SEhXVWN3Z2E2bldjXzE3MDAwMzM4Nzg6MTcwMDAzNzQ3OF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115175033983-20231115175047189.png"></p>
 <p>综上，可以看出：JMX 对于 getCollectionTime() 方法只记录了 concurrent G1 的 stw 部分的耗时，因此 getCollectionTime() 的统计耗时是 accumulated stw GC time，更为精确。</p>
 <h2 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h2><p>《深入理解Java虚拟机（第3版）》 周志明 </p>
 <p><a target="_blank" rel="noopener" href="https://openjdk.java.net/projects/jdk/15/">https://openjdk.java.net/projects/jdk/15/</a></p>

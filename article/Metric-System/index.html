@@ -124,7 +124,7 @@
 <li>Micrometer提供了与供应商无关的接口，包括 <strong>timers（计时器）</strong>， <strong>gauges（量规）</strong>， <strong>counters（计数器）</strong>， <strong>distribution summaries（分布式摘要）</strong>， <strong>long task timers（长任务定时器）</strong>。它具有维度数据模型，当与维度监视系统结合使用时，可以高效地访问特定的命名度量，并能够跨维度深入研究。</li>
 <li>可以看到，Micrometer 的核心组件、概念等与 DropWizard 类似。但是 Micrometer 组件非常丰富（提供了很多实现），因此类图过于复杂，此处不作赘述，后文将展开分析。</li>
 </ol>
-<h2 id="1-1-核心组件"><a href="#1-1-核心组件" class="headerlink" title="1.1. 核心组件"></a>1.1. 核心组件</h2><h3 id="1-1-1-MetricsRegistry-MeterRegistry"><a href="#1-1-1-MetricsRegistry-MeterRegistry" class="headerlink" title="1.1.1. MetricsRegistry &#x2F; MeterRegistry"></a>1.1.1. MetricsRegistry &#x2F; MeterRegistry</h3><h4 id="DropWizard"><a href="#DropWizard" class="headerlink" title="DropWizard"></a><strong>DropWizard</strong></h4><p>维护所有 Metric 的集合，在 DropWizard 中表现为 <code>MetricSet</code>。</p>
+<h2 id="1-1-核心组件"><a href="#1-1-核心组件" class="headerlink" title="1.1. 核心组件"></a>1.1. 核心组件</h2><h3 id="1-1-1-MetricsRegistry-MeterRegistry"><a href="#1-1-1-MetricsRegistry-MeterRegistry" class="headerlink" title="1.1.1. MetricsRegistry &#x2F; MeterRegistry"></a>1.1.1. MetricsRegistry &#x2F; MeterRegistry</h3><h4 id="DropWizard"><a href="#DropWizard" class="headerlink" title="DropWizard"></a>DropWizard</h4><p>维护所有 Metric 的集合，在 DropWizard 中表现为 <code>MetricSet</code>。</p>
 <p>核心是使用了 <code>private final ConcurrentMap&lt;String, Metric&gt; metrics</code> 维护所有的 Metric，key 是 metric 的 tag 或者 name</p>
 <ol>
 <li>提供了 <code>MetricRegistryListener</code>，目的是为了在子 registry 增加注册 metric 时，通知父 registry，同步添加到 registry 的 <code>ConcurrentHashMap</code> 中</li>
@@ -140,7 +140,7 @@
 <li><p>通常，每个应用程序只需要一个 MetricRegistry 实例，但如果想在特定报告组中组织指标，则可以选择使用更多实例。</p>
 </li>
 </ol>
-<h4 id="Micrometer"><a href="#Micrometer" class="headerlink" title="Micrometer"></a><strong>Micrometer</strong></h4><p>Meter 是收集应用的一系列指标的接口。Meter 是由 MeterRegistry 创建的。每个支持的监控系统都必须实现MeterRegistry。 </p>
+<h4 id="Micrometer"><a href="#Micrometer" class="headerlink" title="Micrometer"></a>Micrometer</h4><p>Meter 是收集应用的一系列指标的接口。Meter 是由 MeterRegistry 创建的。每个支持的监控系统都必须实现MeterRegistry。 </p>
 <p>Micrometer 中包含一个 <code>SimpleMeterRegistry</code>，它在内存中维护每个 meter 的最新值，并且不将数据导出到任何地方。这是 Micrometer 最简单的注册表形式。 </p>
 <p>但是，在大多数情况下，Micrometer 有专门为各种监控系统设计的 MeterRegistry：如对于 Promethus 来说，它是 <code>PromethusMeterRegistry</code>。</p>
 <div align="center"><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115143317005.png" alt="image-20231115143317005" style="zoom: 25%;" align="center" /></div>
@@ -155,39 +155,40 @@
 </ol>
 <p>Micrometer 还提供一种 <code>CompositeMeterRegistry</code> ，允许添加多个注册表。 它提供了一种将应用程序指标同时发布到各种受支持的监控系统的解决方案。</p>
 <p>IoTDB 原本用的是 <code>globalRegistry</code>（本质上是一个<code>CompositeMeterRegistry</code>），里面套用 <code>SimpleMeterRegistry</code>。实际上可以认为 IoTDB 用的就是 <code>SimpleMeterRegistry</code>。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MDMyYzViODYwMWNiM2MwOTUwZDkxMzExZWMxMDhjOWFfeUFIQm13UXRzZmlpQjI3OTVJSEZ0YVc3Q04waElCOUFfVG9rZW46QTZlMWJvWlhOb0JnZWl4QlpWM2NzTnlubm5nXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181326889.png" alt="image-20231115181326889"></p>
 <p>但是由于 globalRegistry 本质上是 CompositeMeterRegistry，它创建具体的指标项时都是创建 CompositeXXX，CompositeXXX 在具体 api 调用时存在额外的调用开销。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZGIyMmEyMWQ5NmM0MjhjOGNlNTg2ZDRjMTNlNWMzZDZfSW1zUVRyd0FPSUtMZFJvNkx1U1dnYXRIb2EwQkZjckdfVG9rZW46VWZ5bWJqSzVzbzl3QUx4NFNwN2M2YWVBbjdkXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181336375.png" alt="image-20231115181336375"></p>
 <p>咨询 IoTDB Metric 系统的负责大佬 hy 后，得知 IoTDB 使用 CompositeRegistry 的初衷是保留后续为不同 MetricSet 分配不同 Registry 的可能，以提高并发度。</p>
 <p>对于这个问题，考虑到 Registry 的功能仅作为 create 具体的指标项，create 动作本身不具有较高的并发，因此认为可以只有一个 Registry。而将不同 MetricSet 进行存储维度上的不同分配可以通过对 Map 进行更细划分实现。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ODJjZDRmZDZjYjEzM2VkZDgyZWY2ZWUyNmQwZGEzYmVfTFZWaUNTTWRObTBDRE9vYUZhTkxSMjdFWDV4alVMVnRfVG9rZW46WEMwYWJHQjF5b3RuRzR4Q2FHbWNyV2NmbnpjXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181345900.png" alt="image-20231115181345900"></p>
 <p>因此，考虑将 IoTDB 的 MetricRegistry 简化成 SimpleRegistry，减少每次记录指标时多出来的函数调用开销。</p>
 <p><strong>此外，也可以考虑直接删除对 Micrometer Registry 的依赖</strong>（需要重写 JMX Reporter），因为 IoTDB 已经有一套 metrics 的增删改查和命名系统，与 Registry 的功能重复。删掉 Registry 后能对每个 metric 都避免重复的存储动作，节省一倍内存。代码可读性、可维护性也更好。</p>
 <ul>
 <li><strong>最终采用此种方案，详细实施可见后文</strong></li>
 </ul>
-<h3 id="1-1-2-Gauges"><a href="#1-1-2-Gauges" class="headerlink" title="1.1.2. Gauges"></a>1.1.2. Gauges</h3><h4 id="DropWizard-1"><a href="#DropWizard-1" class="headerlink" title="DropWizard"></a><strong>DropWizard</strong></h4><p>DropWizard 中的 gauge 的默认实现使用：<code>DefaultSettableGauge</code></p>
+<h3 id="1-1-2-Gauges"><a href="#1-1-2-Gauges" class="headerlink" title="1.1.2. Gauges"></a>1.1.2. Gauges</h3><h4 id="DropWizard-1"><a href="#DropWizard-1" class="headerlink" title="DropWizard"></a>DropWizard</h4><p>DropWizard 中的 gauge 的默认实现使用：<code>DefaultSettableGauge</code></p>
 <figure class="highlight java"><table><tr><td class="code"><pre><span class="line">MetricBuilder&lt;Gauge&gt; GAUGES = <span class="keyword">new</span> <span class="title class_">MetricBuilder</span>&lt;Gauge&gt;() &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Gauge <span class="title function_">newMetric</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">DefaultSettableGauge</span>&lt;&gt;();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">isInstance</span><span class="params">(Metric metric)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> Gauge.class.isInstance(metric);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 
 <p>其他类型的 gauge 主要需要关注 <code>CachedGauge</code>，它缓存了 Gauge 中的值，并设置了过期时间。只有当值过期时，才会 reload 值。</p>
 <p>其他的 Gauge 基本都是存取某个对象计算值的方法引用，其效率取决于具体的<code>getValue()</code>方法。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MzE0ZDUxZmMzOGQ0Y2E0OGE4OTEyMjRkMTQ4M2U1NGRfYmRTSFB5eTkzb09TSjVHSXhTcUdsUmNPM05scW9FaVFfVG9rZW46R2dPV2I4bjBkb3NnSUN4NVNUM2NUVkJFbkFkXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
-<h4 id="Micrometer-1"><a href="#Micrometer-1" class="headerlink" title="Micrometer"></a><strong>Micrometer</strong></h4><p>种类比较多，主要用到的是 <code>DefaultGauge</code> 和 <code>CompositeGauge</code></p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MWFhZjljYTFkNjYyZjYzZDg0N2MxYmMxZjVhOTAyZjJfWWp5MlhtazEwRDV5bWNoTjM2bmlza1FDQ1JiUmVMWFJfVG9rZW46UlprOWJWeUl0b2dsVEJ4U1pscmNQc2lnbjNnXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<div align="center"><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181356236.png" alt="image-20231115181356236" style="zoom:50%;" /></div>
+
+<h4 id="Micrometer-1"><a href="#Micrometer-1" class="headerlink" title="Micrometer"></a>Micrometer</h4><p>种类比较多，主要用到的是 <code>DefaultGauge</code> 和 <code>CompositeGauge</code></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181423309.png" alt="image-20231115181423309"></p>
 <p>Micrometer 的 gauge 不是将值的计算委托给具体的对象，而是将<strong>获取具体对象和计算值的方法解耦</strong>。如此，gauge 寄存的值不局限于某个对象的某个方法，对象和方法可以解耦，增强了可拓展性。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZTdkYmZhMDBkZDZmMDFjYTJkN2RiYjhlOTYxNDZmNzRfcE5UemZXaWxSNjJLQnBSbDVzNlBTckxza29mWVN2U2tfVG9rZW46UUJOTWJNeG1PbzhlaVh4U2g0NWN6dUlhbnNoXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181433511.png" alt="image-20231115181433511"></p>
 <p><strong>至于性能上</strong>，由于 Micrometer 没有提供缓存版 gauge，因此在涉及读密集且重计算的场景时会有性能问题，预期不如 Dropwizard。<strong>考虑在 IoTDB 实现时加一层缓存进行优化。</strong></p>
-<h3 id="1-1-3-Rate"><a href="#1-1-3-Rate" class="headerlink" title="1.1.3. Rate"></a>1.1.3. Rate</h3><h4 id="DropWizard-2"><a href="#DropWizard-2" class="headerlink" title="DropWizard"></a><strong>DropWizard</strong></h4><p>相当于 Meter，用于度量事件响应的平均速率，它表示的是应用程序整个运行生命周期内的总速率（总请求响应量&#x2F;处理请求的总毫秒数，即每秒请求数）。</p>
+<h3 id="1-1-3-Rate"><a href="#1-1-3-Rate" class="headerlink" title="1.1.3. Rate"></a>1.1.3. Rate</h3><h4 id="DropWizard-2"><a href="#DropWizard-2" class="headerlink" title="DropWizard"></a>DropWizard</h4><p>相当于 Meter，用于度量事件响应的平均速率，它表示的是应用程序整个运行生命周期内的总速率（总请求响应量&#x2F;处理请求的总毫秒数，即每秒请求数）。</p>
 <p>除此之外，Meter 还提供了1分钟、5分钟以及15分钟的动态平均响应速率。</p>
 <p>其实现借助了 <code>MovingAverage</code>。</p>
-<h4 id="Micrometer-2"><a href="#Micrometer-2" class="headerlink" title="Micrometer"></a><strong>Micrometer</strong></h4><p>没有找到 Rate 语义的实现。</p>
+<h4 id="Micrometer-2"><a href="#Micrometer-2" class="headerlink" title="Micrometer"></a>Micrometer</h4><p>没有找到 Rate 语义的实现。</p>
 <h3 id="1-1-4-Counter"><a href="#1-1-4-Counter" class="headerlink" title="1.1.4. Counter"></a>1.1.4. Counter</h3><p>Counter 是一个常规计数器，用于对某项指标值进行累加或者递减操作。</p>
-<h4 id="DropWizard-3"><a href="#DropWizard-3" class="headerlink" title="DropWizard"></a><strong>DropWizard</strong></h4><p>Counter 本质是一个 <code>java.util.concurrent.atomic.LongAdder</code>，在多线程同时更新计数器的场景下，当并发量较大时，LongAdder 比 AtomicLong 具有更高的吞吐量，当然空间资源消耗也更大一些。</p>
-<h4 id="Micrometer-3"><a href="#Micrometer-3" class="headerlink" title="Micrometer"></a><strong>Micrometer</strong></h4><p>Micrometer 提供了更多种类的 Counter，基本功能都类似 <code>CumulativeCounter</code>，其他 Counter 的主要区别是拓展了一些和监控系统相关的功能，具体使用哪种与 Registry 有关。IoTDB 目前使用的 <code>SimpleMeterRegistry</code> 使 用 <code>CumulativeCounter</code>。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MzFlZjU5NmIzMTFkYTc1NGQ5OTFkZDk2NDI0ODk0NWJfOUltVFVMVzk4R0U5R1AzVDNDdlJyT3VpMURBeklNZDFfVG9rZW46WHBqVmJCa3dsb3B2WmF4dk1mdWNCdXhFbjFjXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
-<p>其与 DropWizard 的实现大同小异，<strong>唯一区别是前者使用</strong> **<code>DoubleAdder</code>**<strong>，后者使用</strong> **<code>LongAdder</code>**<strong>。</strong>但是前者最终接口是 long，因此涉及一些转化开销，double 本身的运算开销也较大。因此 DropWizard 性能更好。</p>
+<h4 id="DropWizard-3"><a href="#DropWizard-3" class="headerlink" title="DropWizard"></a>DropWizard</h4><p>Counter 本质是一个 <code>java.util.concurrent.atomic.LongAdder</code>，在多线程同时更新计数器的场景下，当并发量较大时，LongAdder 比 AtomicLong 具有更高的吞吐量，当然空间资源消耗也更大一些。</p>
+<h4 id="Micrometer-3"><a href="#Micrometer-3" class="headerlink" title="Micrometer"></a>Micrometer</h4><p>Micrometer 提供了更多种类的 Counter，基本功能都类似 <code>CumulativeCounter</code>，其他 Counter 的主要区别是拓展了一些和监控系统相关的功能，具体使用哪种与 Registry 有关。IoTDB 目前使用的 <code>SimpleMeterRegistry</code> 使 用 <code>CumulativeCounter</code>。</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181503300.png" alt="image-20231115181503300"></p>
+<p>其与 DropWizard 的实现大同小异，**唯一区别是前者使用 <code>DoubleAdder</code>，后者使用 <code>LongAdder</code>**。但是前者最终接口是 long，因此涉及一些转化开销，double 本身的运算开销也较大。因此 DropWizard 性能更好。</p>
 <p><strong>考虑使用</strong> <strong><code>LongAdder</code></strong> <strong>实现 Counter。</strong></p>
-<h3 id="1-1-5-Histogram-DistributionSummary"><a href="#1-1-5-Histogram-DistributionSummary" class="headerlink" title="1.1.5. Histogram &#x2F; DistributionSummary"></a>1.1.5. Histogram &#x2F; DistributionSummary</h3><h4 id="DropWizard-4"><a href="#DropWizard-4" class="headerlink" title="DropWizard"></a><strong>DropWizard</strong></h4><p>Histogram 反应的是数据流中的值的分布情况。包含最小值、最大值、平均值、中位数、p75、p90、p95、p98、p99以及p999数据分布情况。</p>
+<h3 id="1-1-5-Histogram-DistributionSummary"><a href="#1-1-5-Histogram-DistributionSummary" class="headerlink" title="1.1.5. Histogram &#x2F; DistributionSummary"></a>1.1.5. Histogram &#x2F; DistributionSummary</h3><h4 id="DropWizard-4"><a href="#DropWizard-4" class="headerlink" title="DropWizard"></a>DropWizard</h4><p>Histogram 反应的是数据流中的值的分布情况。包含最小值、最大值、平均值、中位数、p75、p90、p95、p98、p99以及p999数据分布情况。</p>
 <blockquote>
 <p>节选自参考资料：</p>
 <p>传统 Histogram 计算分位数的方法是先对整个数据集进行排序，然后取排序后的数据集中特定位置的值（比如p99就是取倒序1%位置的值）。这种方式适合于小数据集或者批处理系统，不适用于要求高吞吐量、低延时的服务。</p>
@@ -231,12 +232,13 @@
 <p>具体来说，<code>ExponentiallyDecayingReservoir</code> 会定期执行重定标（rescale）操作，以清理旧数据并降低数据的权重，从而达到淘汰数据的目的。</p>
 <p>Rescale 的大致过程是：基于指数衰减公式 <code>exp(-alpha * (startTime - oldStartTime))</code>计算缩放因子，如果缩放因子等于零，说明时间差距太大，直接清空所有的样本数据；否则，遍历所有样本数据，根据缩放因子将每个样本的权重进行缩放，然后将缩放后的样本数据重新插入到数据结构中。</p>
 <p>来源于这篇论文：**<a target="_blank" rel="noopener" href="http://dimacs.rutgers.edu/~graham/pubs/papers/fwddecay.pdf">forward-decaying priority reservoir</a>**</p>
-<h4 id="Micrometer-4"><a href="#Micrometer-4" class="headerlink" title="Micrometer"></a><strong>Micrometer</strong></h4><p>Micrometer 拥有 Histogram 类，然而 IoTDB 使用的是 Micrometer 的 DistributionSummary。</p>
+<h4 id="Micrometer-4"><a href="#Micrometer-4" class="headerlink" title="Micrometer"></a>Micrometer</h4><p>Micrometer 拥有 Histogram 类，然而 IoTDB 使用的是 Micrometer 的 DistributionSummary。</p>
 <ol>
 <li><strong>Histogram 和 DistributionSummary 有什么功能区别？</strong></li>
 </ol>
 <p>实际代码可以看出：Histogram 在 Micrometer 中是作为一种基础组件，而不是一种监控指标。DistributionSummary 集成了 Histogram</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NTZkYTk4OTljYjNjYzc1MmNmNzYxZTZmYjNiOTFkM2RfRWhPWTZFR1AwUmZtOXUzVXpWNDJRYkNqVnljSDUzd0dfVG9rZW46V3UwcWJ2R2oyb2FMNVN4R1JqVWN0RmNkbnBlXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<div align="center"><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181523661.png" alt="image-20231115181523661" style="zoom:50%;"/></div>
+
 <p>因此使用 DistributionSummary 即可。</p>
 <ol start="2">
 <li><strong>DistributionSummary 是怎么实现的？</strong></li>
@@ -248,23 +250,23 @@
 <ul>
 <li>实现类：实际上就是 wrap 了 HdrHistogram 的 DoubleHistogram，在读路径中用到，作为暴露给外界的结果变量使用。</li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OGE3OGIyOWJkNGU5NWIwOGM3NzA2Yjc3NzFmYjBkZDlfc0RWM1o3cHdYVFdSOXN5djVqRmFrZzV3MnlyUm1rVTlfVG9rZW46SW04UmIyZDlTb0E5WHV4R1U3dWM4RXVubjZmXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181543798.png" alt="image-20231115181543798"></p>
 <ul>
 <li>基类：有一个 ringBuffer，ringBuffer 的每一项都是一个 Histogram。写路径更新 ringBuffer（下一节将详细描述）， 有一个函数在 takeSnapshot 时把 <code>ringBuffer[currentBucket]</code> 的值 copy 给实现类的 <code>intervalHistogram</code>（见上图），并做后续处理。</li>
 </ul>
-<h5 id="2-Micrometer-是如何结合-HdrHistogram-实现淘汰旧数据的？"><a href="#2-Micrometer-是如何结合-HdrHistogram-实现淘汰旧数据的？" class="headerlink" title="2. Micrometer 是如何结合 HdrHistogram 实现淘汰旧数据的？"></a>2. <strong>Micrometer 是如何结合 HdrHistogram 实现淘汰旧数据的？</strong></h5><ul>
+<h5 id="2-Micrometer-是如何结合-HdrHistogram-实现淘汰旧数据的？"><a href="#2-Micrometer-是如何结合-HdrHistogram-实现淘汰旧数据的？" class="headerlink" title="2. Micrometer 是如何结合 HdrHistogram 实现淘汰旧数据的？"></a>2. Micrometer 是如何结合 HdrHistogram 实现淘汰旧数据的？</h5><ul>
 <li>首先，Micrometer 用一个 ringBuffer 来存储数据。ringBuffer 的每一项就是一个 HdrHistogram（<code>org.HdrHistogram.DoubleRecorder</code>）</li>
 <li>当导出 Snapshot 的时候，用到的是 <code>currrentBucket</code> 指针指向的 buffer。</li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZWY2N2IwNGNlZWQwNGM0ZTVhZWFhMDNjYWRlMDliOWJfV0RoZkNqR001RW5DYW9pRGdGVTJiVTVFWEphaXBXekNfVG9rZW46WDc1SGJ6MUVvb280Mmt4alYybmNDQ1I0bmpYXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181608771.png" alt="image-20231115181608771"></p>
 <ul>
 <li>Micrometer 每次插入数据的时候，会往 ringBuffer 中的所有 buffer 插入数据（后文会解释「为什么要向所有的 buffer 插入数据」）</li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=YTk3ZGI5M2IwZmU3YzE4ZDAyYWQzOTc1N2Y2Mzg3M2RfWGlJYURGakxhWGN1WEVkaXR5RVlXVnRmN21kdUUyN3dfVG9rZW46UkxITGJoZE5Rb04wN094MERlSGMwN2wybmpkXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181619688.png" alt="image-20231115181619688"></p>
 <ul>
 <li>Micrometer 在每次插入新数据前，会调用 <code>rotate()</code> 方法。</li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZjIwYmU1OTEyMjFiOWMwYzU1NDAzN2RkMzRmYWQ4OWNfS0YyWTJpODdHek9Qcjd3VnRlM29NTUdwaXpQTmhmYzFfVG9rZW46QmRvWGIwTEJNb01icmV4WUpzd2NicHRrblNmXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181630199.png" alt="image-20231115181630199"></p>
 <ul>
 <li><p><strong>rotate() 方法实现了淘汰旧数据</strong>。逻辑如下：</p>
 </li>
@@ -277,17 +279,17 @@
 <li><p>综上，如此就巧妙的达到了淘汰旧数据的目标。可以看出：相比于 DropWizard 每次淘汰旧数据时对跳表的复杂操作，Micrometer 的 rotate 开销不大，再配合 HdrHistogram 本身静态分桶的高写入速度（后文会提到），Micrometer 就实现了比 DropWizard 更好的（写）性能。</p>
 </li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZTFhZDRjOGQ3NGMyZGNhZjc4NjM0YTA3MTBhZGU2ODVfbXl2dUJYRGRWYWFkTmxQd2ZSQWlFRDdzQm1FUlJUcThfVG9rZW46VXV4SWJYVjlZb3REOUd4ZlJDdWN6WWVublNxXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181650099.png" alt="image-20231115181650099"></p>
 <ul>
 <li><strong>可优化点思考：</strong>从前面分析可以看到，Micrometer 在每次写入数据时，对 ringBuffer 的所有 bucket 都进行了写入操作。那么是否可以通过缩小 ringBuffer 的 size，从而减少写 bucket 次数，来提高 Micrometer Histogram 的写入效率？需要研究下 ringBuffer.length 的设置原理。<ul>
 <li>ringBuffer.length 默认设置为 3。根据上文，只要保证 ringBuffer.length 大于 1 既能保证淘汰旧数据的目的。因此考虑将 ringBuffer.length 设为 2（<strong>PR</strong>: <a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/pull/11500%EF%BC%89">https://github.com/apache/iotdb/pull/11500）</a></li>
 </ul>
 </li>
 </ul>
-<h5 id="3-HdrHistogram-的设计思路和算法有哪些？"><a href="#3-HdrHistogram-的设计思路和算法有哪些？" class="headerlink" title="3. HdrHistogram 的设计思路和算法有哪些？"></a>3. <strong>HdrHistogram 的设计思路和算法有哪些？</strong></h5><p>不同于前文提到 DropWizard 使用的随机性算法实现（淘汰旧数据），HdrHistogram 使用的是<strong>确定性算法</strong>。</p>
+<h5 id="3-HdrHistogram-的设计思路和算法有哪些？"><a href="#3-HdrHistogram-的设计思路和算法有哪些？" class="headerlink" title="3. HdrHistogram 的设计思路和算法有哪些？"></a>3. HdrHistogram 的设计思路和算法有哪些？</h5><p>不同于前文提到 DropWizard 使用的随机性算法实现（淘汰旧数据），HdrHistogram 使用的是<strong>确定性算法</strong>。</p>
 <p>确定性算法本质上就是静态分桶，有点类似压缩存储的思想。<strong>用容器将所有遇到的数据全部保存起来</strong>，<strong>实际上不需要将每个值都存下来，但结果也不是精确解。</strong>以达到 Histogram 所需要的计算分位数等功能。但 HdrHistogram 不是一个数字一个桶，而是一个区间一个桶。该区间的范围可以是线性增长，也可指数增长。<strong>通过一个区间分一个桶</strong>的方式， 就能通过牺牲一小部分精度，从而达到减小空间占用，并且数据大致准确的结果。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NDlhYjI5OGEyODhiZjk1YjVlMTIxMDJiM2Q4Y2E1YTZfaWZVazhxNUdmUXp0RGNlZUR3OVJISU5heFNGclZRclRfVG9rZW46RGtWSGJwckwxbzhOa1J4d1lPQ2NRY3dwbnhlXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
-<h5 id="4-HdrHistogram-具体是如何分割区间的？"><a href="#4-HdrHistogram-具体是如何分割区间的？" class="headerlink" title="4. HdrHistogram 具体是如何分割区间的？"></a>4. <strong>HdrHistogram 具体是如何分割区间的？</strong></h5><p>前面提到，HdrHistogram 不是一个数字一个桶，而是一个区间一个桶。该区间的范围可以是线性增长，也可指数增长。现在假设有值域为 [0..R] 的区间</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181702444.png" alt="image-20231115181702444"></p>
+<h5 id="4-HdrHistogram-具体是如何分割区间的？"><a href="#4-HdrHistogram-具体是如何分割区间的？" class="headerlink" title="4. HdrHistogram 具体是如何分割区间的？"></a>4. HdrHistogram 具体是如何分割区间的？</h5><p>前面提到，HdrHistogram 不是一个数字一个桶，而是一个区间一个桶。该区间的范围可以是线性增长，也可指数增长。现在假设有值域为 [0..R] 的区间</p>
 <ul>
 <li>对于线性分桶：也就是对于 0..R 如果用 B 分隔， 那么总共可以分隔 R&#x2F;B 个格子，数组的size也是 R&#x2F;B</li>
 <li>对于指数分桶，也就是基于指数分隔（2 的幂次），第一个桶有 2^0 个数，第二个桶有 2^1 个数… 第 n 个桶有 2^(n-1) 个数。</li>
@@ -297,12 +299,12 @@
 <p>采用指数的分桶方式，只需要 17 个 buckets， <code>[2^K..(2^(K+1)-1)]</code> e.g. <code>[1..1][2..3][4..7]...[65,536..131,071]</code></p>
 <p>这里 HdrHistogram 用了一个 trick：</p>
 <p>对于分隔 buckets，HdrHistogram 同时采用了线性和指数，HdrHistogram 内部有2个 index，<code>bucketsIdx</code> 和 <code>subBucketIndex</code>. 前者是指数的，后者是线性的。可以根据业务精度需求控制后面的线性的大小。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OTNlZWIyYzk2NWQ3OWI0NTkwMmFiNmRkZDQzNmY2OThfWFphdDgzQ041bklpcTJSMFFSMm9GVGl5V0MydGJJaGpfVG9rZW46QVExaGJ2Snkzb0NPdU54YkFNN2NqV2QxbnljXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181715521.png" alt="image-20231115181715521"></p>
 <p>首先，所谓「分桶」就是一个 long 数组。数组的每一项就是一个桶，其意义是：统计某个区间内数据出现的次数。分桶策略决定了数组的每一项统计的区间范围是多少。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MjBmZGI5NjA4OGIyZWFjM2Q0MGY1NDhkMTdlY2UyNzlfelIzdFlSd0NFcTc0ckI2eVVQVzYydmVLaHI3NW4wVHpfVG9rZW46SlpqTmJ4OGtzb05tc3d4cGMyOWNoTXRibjNCXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181730237.png" alt="image-20231115181730237"></p>
 <p>具体来说，HdrHistogram 的分桶策略是<strong>指数和线性结合</strong>：</p>
 <p>HdrHistogram 先将需要统计的总区间通过 2 的幂次指数分成 n 个桶<em>（如果区间长度为 l，即保证 2^(n-1) &gt;&#x3D; l）</em>，此时标识这些桶的 index 就叫 <code>bucketIndex</code>。而每个桶又分为 <code>subBucketCount</code> 个子桶（<code>subBucketCount</code> 是可间接配置的），这些子桶的下标就叫做 <code>subBucketIndex</code>。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=YTFjOGYxYzQwMDNiOTUyOTFhMThkODI4OTdjMDc5NTJfTG9JdFRjdGZIQXZ3MmJ6eVRuQUVRSlhYZGFJYUFtdUJfVG9rZW46SEJGTGJrN1lzb2dnZEl4MVUweGN1em9Dbm5lXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181756401.png" alt="image-20231115181756401"></p>
 <p><strong>举个例子，</strong>每个桶有 <code>subBucketCount</code> 个子桶，这里假设为 2048 ，那么第 1 个桶可以以 2^0 的精度表示 2^0 * 0 ~ 2^0 * 2048，即第 1 个桶可以覆盖区间 [0, 2048]，且每个子桶可以覆盖 1 个值（精度是 2^0 &#x3D; 1）。</p>
 <p>这里就有一个<strong>「桶重叠」(bucket overlap)</strong> 的问题。首先我们给出结论：</p>
 <ul>
@@ -319,7 +321,7 @@
 </li>
 </ul>
 <p>那么当一个数据被插入，实际计算其下标时，就是结合上述分桶原理，计算它所在的桶（bucketIndex）和子桶（subBucketIndex），二者经过一些简单组合运算后得到最终下标，可以参考代码：</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OTQ2NjM3OWYxNTRmMzVjZTcyYjYzNWMzYjNjZGZlMjdfeXJNbjA1RWFucTJSWWlSRUFsaEtPNmgxTE94TnJWcGFfVG9rZW46Tzh0eGJZNE40b3ZqcWt4ZE0xbmNJRGwxbjVmXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181812492.png" alt="image-20231115181812492"></p>
 <p><strong>这样分桶的好处是：</strong></p>
 <ul>
 <li>如果纯线性分桶，那么显然空间占用过大；如果纯指数分桶，又会有精度的问题。二者结合，可以较好的解决线性分桶空间占用的问题，一定程度上优化指数分桶精度的问题。整个分桶思想有点类似压缩存储，将所有数据保存起来，但是不保存具体的值。在舍弃一点精度的情况下省下大量内存。</li>
@@ -344,35 +346,36 @@
 </li>
 </ul>
 </li>
-<li><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NGJhOGYyMzEyOTc4NDk3YWViNTY0ZTcwYjhkYTE5ZDZfNlAxMnpTUmpFbUhNMmU4WjZuQzRkZ09WNkx1Sk9wU1FfVG9rZW46WmRmWGIyMk9ob25tVGZ4ZGE0QWNhQ2tIbm1lXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></li>
+<li><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181825941.png" alt="image-20231115181825941"></li>
 </ul>
 </li>
 </ul>
-<h5 id="5-HdrHistogram-的-resize-机制"><a href="#5-HdrHistogram-的-resize-机制" class="headerlink" title="5. HdrHistogram 的 resize 机制"></a>5. <strong>HdrHistogram 的 resize 机制</strong></h5><p>当然以上都有个缺点，需要一个可预估的最大值（可以理解为 HdrHistogram 统计区间的最大值）。如果有超过最大值的数字（即数据大小超过了 HdrHistogram 的统计区间）</p>
+<h5 id="5-HdrHistogram-的-resize-机制"><a href="#5-HdrHistogram-的-resize-机制" class="headerlink" title="5. HdrHistogram 的 resize 机制"></a>5. HdrHistogram 的 resize 机制</h5><p>当然以上都有个缺点，需要一个可预估的最大值（可以理解为 HdrHistogram 统计区间的最大值）。如果有超过最大值的数字（即数据大小超过了 HdrHistogram 的统计区间）</p>
 <ol>
 <li>如果没有设置 <code>autoResize</code>，将抛出异常，存入失败。</li>
 <li>如果设置了 <code>autoResize</code>，将 resize 区间（重新设置区间范围并重新分桶）</li>
 <li>默认 <code>autoSize</code> 为 true</li>
 </ol>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OTgzMTE2Yzk1NDA5YjUxYWVhZTJkMjFjNGM0NWY0YmZfYWFUcFpqZHd4eWVFbzRRcncyZjFvQ3RnT3I5MzUxQVpfVG9rZW46RTByNGJyQXVzb0hHUmV4OXBWa2NtU2I1bmNjXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115181836431-20231115181956661.png"></p>
 <ul>
 <li><code>autoResize</code> 是 Histogram 类里面的一个可设置参数</li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OWQxOGFiNjk1ZWQwOWU0MTEyMGM0NzQ4YjJmNDY1OGJfR2lBc1ExZzR3bjM2UDh5eXJVbjlCNU95bGhoYk1uOFpfVG9rZW46QUhqc2JHOGZKb3k1UXh4NXFOTWNyVWEzbklkXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
-<h5 id="6-HdrHistogram-如何确定统计区间的上下界？"><a href="#6-HdrHistogram-如何确定统计区间的上下界？" class="headerlink" title="6. HdrHistogram 如何确定统计区间的上下界？"></a>6. <strong>HdrHistogram 如何确定统计区间的上下界？</strong></h5><p>答案：通过构造函数设定。</p>
+<img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182017944.png" alt="image-20231115182017944" style="zoom: 33%;" />
+
+<h5 id="6-HdrHistogram-如何确定统计区间的上下界？"><a href="#6-HdrHistogram-如何确定统计区间的上下界？" class="headerlink" title="6. HdrHistogram 如何确定统计区间的上下界？"></a>6. HdrHistogram 如何确定统计区间的上下界？</h5><p>答案：通过构造函数设定。</p>
 <p>可以清晰的看到 Histogram 类的构造函数参数含义</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=M2Q1NzdlODlmMzQxNDFhMzkxNTQxZmYzMDQ3NWQ1M2ZfbHZvUzA3VFNHbDg4UUtubzR5VThGQkMxbkc4QzVkSG5fVG9rZW46TFVUa2JuWTd0bzdXN3Z4dnV0M2NKemhVblRlXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182041701.png" alt="image-20231115182041701"></p>
 <p>但 Micrometer（IoTDB）中不是直接调用该构造函数，跟进发现调用的构造函数是：</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=YzE3MmEzNTFiODdkZDg0ZmRiMGEyZWI3Zjc4ZjBmNDJfZlZ2ME90NWNDWDZpTkJMOWNUZUxHMjRVdEUyVmJjTlNfVG9rZW46TzI3MGJlUGxlb0dwYjJ4c2tYYWNSeHo2bmNuXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182051030.png" alt="image-20231115182051030"></p>
 <p>其中，<code>highestToLowestValueRatio</code> 和 <code>numberOfSignificantValueDigits</code> 共同确定了 hdrHistogram 的上下界。跟进发现最终上下界为 <strong>[1, 127]</strong></p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OTYxN2ZkOTEyYTlkMjVhNWYzYjI2ZWJkZTUxZmJiMGJfTmxONHB3Y1ZJU2xGdTdaTmZwQURKVGZuZGREd3ZXRmhfVG9rZW46TkpKZGJqU2lpb0RhZ0x4RDAxYmMxbEY1bjRjXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182059931.png" alt="image-20231115182059931"></p>
 <ul>
 <li><strong>可优化点思考：</strong>从前面分析可以看到，当数据超过 hdrHistogram 范围时，会发生 resize，该操作有时间开销。目前的上下界 [1, 127] 显然范围有点小了，在大值数据场景下显然要 resize，甚至多次 resize。我们是否可以对每一个 timer&#x2F;histogram 的使用场景预估数据区间，为每一个 timer&#x2F;histogram 定制数据上下界，尽量避免 resize 操作。<ul>
 <li>由于 Micrometer 没有暴露定制化 hdrHistogram 区间范围的 API，该改动阻塞。已向他们提 issue（<a target="_blank" rel="noopener" href="https://github.com/micrometer-metrics/micrometer/issues/4327%EF%BC%89">https://github.com/micrometer-metrics/micrometer/issues/4327）</a></li>
 </ul>
 </li>
 </ul>
-<h5 id="7-HdrHistogram-和-DropWizard-优劣分析"><a href="#7-HdrHistogram-和-DropWizard-优劣分析" class="headerlink" title="7. HdrHistogram 和 DropWizard 优劣分析"></a>7. <strong>HdrHistogram 和 DropWizard 优劣分析</strong></h5><ul>
+<h5 id="7-HdrHistogram-和-DropWizard-优劣分析"><a href="#7-HdrHistogram-和-DropWizard-优劣分析" class="headerlink" title="7. HdrHistogram 和 DropWizard 优劣分析"></a>7. HdrHistogram 和 DropWizard 优劣分析</h5><ul>
 <li>写入速度：Hdr 远优于 DropWizard<ul>
 <li>正是因为 HdrHistogram 是静态分桶实现，所以写入友好（不需要淘汰旧数据），在<a target="_blank" rel="noopener" href="https://apache-iotdb.feishu.cn/docx/P5svdKZTxoVtqax0mgvcCeYInQe#OglwdZfPEoTKbmx11ywcLMS5nhf"> record</a> 性能测试中比 DropWizard 表现要好。</li>
 <li>HdrHistogram 底层是数组，而 DropWizard 底层是跳表，数组肯定比跳表写入快。</li>
@@ -385,14 +388,14 @@
 </li>
 <li>空间占用：需要具体分析。因为 HdrHistogram 可以通过指数分桶减少空间占用，而 DropWizard 的空间占用也和用户指定的容器大小有关，所以直观上不太好说谁空间占用更好，需要结合具体场景分析。</li>
 </ul>
-<h3 id="1-1-6-Timer"><a href="#1-1-6-Timer" class="headerlink" title="1.1.6. Timer"></a>1.1.6. Timer</h3><h4 id="DropWizard-5"><a href="#DropWizard-5" class="headerlink" title="DropWizard"></a><strong>DropWizard</strong></h4><p>Timer 相当于 Meter + Histogram（默认使用 <code>ExponentiallyDecayingReservoir</code>）。可以统计接口请求速率和响应时长。会度量服务的响应速率，同时也会统计服务响应时长的分布情况。</p>
+<h3 id="1-1-6-Timer"><a href="#1-1-6-Timer" class="headerlink" title="1.1.6. Timer"></a>1.1.6. Timer</h3><h4 id="DropWizard-5"><a href="#DropWizard-5" class="headerlink" title="DropWizard"></a>DropWizard</h4><p>Timer 相当于 Meter + Histogram（默认使用 <code>ExponentiallyDecayingReservoir</code>）。可以统计接口请求速率和响应时长。会度量服务的响应速率，同时也会统计服务响应时长的分布情况。</p>
 <blockquote>
 <p>可以说，Timer 能兼容 Meter + Histogram 的所有接口。</p>
 </blockquote>
 <p>因此 Timer 底层的 update 主要也就是更新 Histogram 和 Meter。</p>
-<h4 id="Micrometer-5"><a href="#Micrometer-5" class="headerlink" title="Micrometer"></a><strong>Micrometer</strong></h4><p>Timer 用于度量短时间内的事件时延和响应频率。所有的 Timer 实现都记录了事件响应总耗时和事件总数。Timer 不支持负数，此外如果使用它来记录大批量、长时延事件的话，容易导致指标值数据越界（超过<code>Long.MAX_VALUE</code>）。</p>
+<h4 id="Micrometer-5"><a href="#Micrometer-5" class="headerlink" title="Micrometer"></a>Micrometer</h4><p>Timer 用于度量短时间内的事件时延和响应频率。所有的 Timer 实现都记录了事件响应总耗时和事件总数。Timer 不支持负数，此外如果使用它来记录大批量、长时延事件的话，容易导致指标值数据越界（超过<code>Long.MAX_VALUE</code>）。</p>
 <p>同样，Micrometer 为每种监控系统设计了不同的 Timer，主要用的是 <code>CumulativeTimer</code>。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZjMyYWIzZmVjODNmZjM1NmMzNDU2N2I0ZDM5MGI2ZTJfTnJFV3VtNGwwbFBLb09RdVViOTc3Y1c4N1FleVpQVlNfVG9rZW46WVlROGI1OWl1b3VwcmZ4b1h5ZWN3d3plblloXzE3MDAwMjkyMTc6MTcwMDAzMjgxN19WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182117259.png" alt="image-20231115182117259"></p>
 <p>Micrometer 的 Timer 相当于 Histogram + 自己实现的计时器（用 AtomicLong 累计 nanoTime 等）。每次 Record 时会更新 Histogram 并更新自己实现的计时器。</p>
 <h2 id="1-2-Reporter"><a href="#1-2-Reporter" class="headerlink" title="1.2. Reporter"></a>1.2. Reporter</h2><p>用于将 metric 指标数据导出到具体的某个介质。</p>
 <p>IoTDB 主要使用了 IoTDBReporter、PrometheusReporter、JMXReporter 三种。因此本文主要探究 DropWizard 中对应的 InfluxDBReporter、GraphiteReporter、JMXReporter 三种 Reporter</p>
@@ -453,7 +456,7 @@
 <li><strong>问题：</strong></li>
 </ol>
 <p>由于 Micrometer 没有提供缓存版 gauge，因此在涉及读密集且重计算的场景时会有性能问题，预期不如 Dropwizard。<strong>考虑在 IoTDB 实现时加一层缓存进行优化。</strong></p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=Y2Q3OWE3ZmUwOTcwN2M4NDk0YzcyNzc5ZDIzOWE5OTdfTlRGQTQ5Wk40WGc3VzQ2bUFmeEl5WVZZNFJlcUllb3lfVG9rZW46VU1wOWJpcFFDb0xERHB4WHFMWGMwT3FobndzXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182140973.png" alt="image-20231115182140973"></p>
 <ol start="2">
 <li><strong>优化：</strong></li>
 </ol>
@@ -465,7 +468,7 @@
 <li><strong>问题：</strong></li>
 </ol>
 <p>原生 Rate 的更新和计算有大量冗余逻辑。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ODViNWEwMjU1ODRjODYxZWVlYTFiYTJiMmU1N2E0MmVfa0pvcnR5S2gwcXdKOWN6THJzUm1haUEyMnBCdW5hZ0lfVG9rZW46TGZKRmJqMUVLb0JrUmh4bVVOSmMyU25BbkhlXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182211527.png" alt="image-20231115182211527"></p>
 <ol start="2">
 <li><strong>优化：</strong></li>
 </ol>
@@ -474,8 +477,8 @@
 <li><strong>问题：</strong></li>
 </ol>
 <p>使用 DoubleAdder 作为 value 的容器<strong>，</strong>但是 IoTDB 的最终接口是 long，而 double 本身的运算开销也较大，因此涉及一些转化和计算开销</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NWQ0ZTkwZTI5NWI2OWQyNTYxNjlkNmQ0NzYwNmZkMTlfc3diM0l1blpraGc1Vk5udDRHeGN3ZDk3RlVOenYxenRfVG9rZW46RlJRRGJvZ3o5b1dkMFh4SEdRQmNodHBHbmRjXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZjhlOWZjMTQ5NjNjYThmNGUxOGM2NGRkNzdlOTU0ZmRfaVVlRUhield4MkE4N0E3V3drYkFTcnA0YkY2V1RURXlfVG9rZW46SVU2aWJpZjNLb016enF4b1ppNGMyMUhvbmJnXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182222612.png" alt="image-20231115182222612"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182231480.png" alt="image-20231115182231480"></p>
 <ol start="2">
 <li><strong>优化：</strong></li>
 </ol>
@@ -488,7 +491,7 @@
 </li>
 <li><strong>优化：</strong><ol>
 <li><strong>可以通过缩小 ringBuffer 的 size，从而减少写 bucket 次数</strong>，来提高 Micrometer Histogram 的写入效率<ol>
-<li>ringBuffer.length 默认设置为 3。根据上文，只要保证 ringBuffer.length 大于 1 既能保证淘汰旧数据的目的。因此考虑将 ringBuffer.length 设为 2（<strong>PR</strong><strong>:</strong> <a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/pull/11500%EF%BC%89">https://github.com/apache/iotdb/pull/11500）</a></li>
+<li>ringBuffer.length 默认设置为 3。根据上文，只要保证 ringBuffer.length 大于 1 既能保证淘汰旧数据的目的。因此考虑将 ringBuffer.length 设为 2（<strong>PR</strong>: <a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/pull/11500%EF%BC%89">https://github.com/apache/iotdb/pull/11500）</a></li>
 </ol>
 </li>
 <li>可以对每一个 timer&#x2F;histogram 的使用场景预估数据区间，<strong>提前为每一个 timer&#x2F;histogram 定制数据上下界</strong>，尽量避免 resize 操作。<ol>
@@ -499,7 +502,7 @@
 </li>
 </ol>
 <h3 id="3-2-5-Timer"><a href="#3-2-5-Timer" class="headerlink" title="3.2.5. Timer"></a>3.2.5. Timer</h3><p>从火焰图和上文的分析中可以看出，Timer 主要耗时由 histogram 的更新和自己实现计时器的更新组成。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=YTk4OGVmYThmZmQ4YjhjOGExNzRlOTZhMzhhZDM0YTNfeEpNZTAycDk5T01MZVQ0OGxud2VsRGU0V3NSa0lDRW5fVG9rZW46THRmZ2JpZ3Y2b0Q1Wkp4UHdYb2M3NHZ6bnpiXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182245840.png" alt="image-20231115182245840"></p>
 <p>由于 Timer 底层使用 Histogram（前文分析过），因此优化 Histogram 也可以优化 Timer，此处不再赘述。</p>
 <h2 id="3-3-【优化二】架构"><a href="#3-3-【优化二】架构" class="headerlink" title="3.3. 【优化二】架构"></a>3.3. 【优化二】架构</h2><h3 id="3-3-1-IoTDBManager"><a href="#3-3-1-IoTDBManager" class="headerlink" title="3.3.1. IoTDBManager"></a>3.3.1. IoTDBManager</h3><p>完全删去原有的 io.micrometer.core.instrument.simple.SimpleMeterRegistry，将各项 Metric 的创建由 Registry 接管过来。<strong>这样优化的好处如下</strong>：</p>
 <ol>
@@ -514,65 +517,65 @@
 <li><strong>Gauge</strong></li>
 </ol>
 <p><code>IoTDBGauge</code> 的核心就是 <code>AtomicLong</code>。由于舍弃了 Micrometer 的命名系统，因此创建 <code>IoTDBGauge</code> 只需<code> new AtomicLong()</code> 即可。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MTU3OGY0MDllNGEzZmY3OTY2YWYyYjI1YmU3OTczMThfd0lVVkNCVVE1aUVab1FUajZJaUh3MlFCZFRSM1dwaTdfVG9rZW46SVRIVWJKZ3RVb2xjbnB4VXpYY2MyVjdabmtmXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182308733.png" alt="image-20231115182308733"></p>
 <ol start="2">
 <li><strong>AutoGauge</strong></li>
 </ol>
 <p><code>IoTDBAutoGauge</code> 主要修改了 <code>WeakReference</code> 的引用。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ODliYTM1ZWVlZTE0ZmIwMWY3MzQxOGE2MDA4ZTMxMzhfckZhQjJxdUkzbHFTREpCSE9KSGdLajhEaWhPVlZyYkFfVG9rZW46TWg0VGJ0ZENBbzVFMFF4Y3RNZGNEQ3BQbnlnXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182325099.png" alt="image-20231115182325099"></p>
 <p>在原本实现中传入 <code>WeakReference</code> 的 <code>meterRegistry.gauge(...)</code> 中， <code>meterRegistry.gauge(...)</code> 返回的仅仅就是参数中的 <code>object</code>。因此这里直接将<code>WeakReference</code> 的参数改为了 <code>object</code>。</p>
 <p>至于在 <code>meterRegistry.gauge</code> 中创建的 <code>gauge</code>，<code>IoTDBAutoGauge</code> 并没有用到，原来的实现只是为了在 <code>Micrometer</code> 的命名系统中创建一个同名 <code>gauge</code>。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MjYxMDA0YmZjMDNhNTQ0NzU1YjVjZWVmZjc2MWE1YmFfaUwyNnBOUkxnM3U1ZUFSRDhrdGxpM1NQOXpSRXRFTEtfVG9rZW46WVBKRmJkMXI2b1dxQnh4dW9TS2NZdjd4bkVoXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182339161.png" alt="image-20231115182339161"></p>
 <ol start="3">
 <li><strong>Counter</strong></li>
 </ol>
 <p>完全舍弃掉 Micrometer 的实现，只保留 <code>LongAdder</code></p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NmZmZDlmMTlhOTRiNDAyZDc2Nzk2YTdkZmQxYzcwMDJfQzI4cVdJc3NhbnhMeWQ4RUZLcDkyUmwyS3pmYVJiYW9fVG9rZW46UWhSeGI1RWdGb2xkTnZ4RHl2RGNsQm1obmZhXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182349453.png" alt="image-20231115182349453"></p>
 <ol start="4">
 <li><strong>Rate</strong></li>
 </ol>
 <p>IoTDB 的实现在 Micrometer 的基础上砍去了 m5、m15 等统计点，因此传入 IoTDB 定制的 <code>IoTDBMovingAverage</code> 即可</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZDY1NDhiODlkNmE3MWVmOWQ2NjVmMmNhMWNkODY1MDBfMktxcGRrYUpRQTFKaE1rVXJQM0VrbmNMbVRDV1lzRkZfVG9rZW46VzJ2MmJPQktnb0F6dEd4RXNya2M5cGhvbm5iXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182401836.png" alt="image-20231115182401836"></p>
 <ol start="5">
 <li><strong>Timer</strong></li>
 </ol>
 <p>参考 SimpleMeterRegistry 的创建流程。经验证，创建后的 CumulativeTimer 与原来的实现属性一致，符合预期。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ODYzMjk3NTQyOTc3OTVlMmZlNjM3MjgwZTExMmU2ZjhfbG9XTXlaeEhPU0t1NWoxNk1ZZ3EzeE1BZU5DcDVIOVVfVG9rZW46Q2N4ZmJYd3ZKb1hwTmN4eW1lRGNvZWpqblJiXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182414059.png" alt="image-20231115182414059"></p>
 <ol start="6">
 <li><strong>Histogram</strong></li>
 </ol>
 <p>参考 SimpleMeterRegistry 的创建流程。经验证，创建后的 CumulativeDistributionSummary 与原来的实现属性一致，符合预期。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MDhmMTM5NTI2NTA3NTM1NmQzNzUxYmE1NTI5MTJlMWZfem1yOXBUbXdHTzFwS3E5MDdVbG1uUzJFSjEzVWRuZUJfVG9rZW46UG5xQmJnSDdZb2tZRUJ4Ums5WmNpNFRobktiXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182423894.png" alt="image-20231115182423894"></p>
 <h3 id="3-3-2-JmxReporter"><a href="#3-3-2-JmxReporter" class="headerlink" title="3.3.2. JmxReporter"></a>3.3.2. JmxReporter</h3><p>舍弃 <code>io.micrometer.jmx.JmxMeterRegistry</code> 的实现，自己实现 <code>JmxReporter</code>。<strong>这样优化的好处主要是节省一倍内存</strong>，原因如下：</p>
 <p><code>io.micrometer.jmx.JmxMeterRegistry</code> 的实现是将 <code>JmxReporter</code> 监听 Registry，每次 Registry 创建新指标项时，<code>JmxReporter</code> 也创建一份实现了 MBean 接口的指标对象，相当于<strong>一个监控项创建了两个对象</strong>。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NDFkZjAzMGM4OTExNDU1MzFiYzllOWI1YmIyZDcyMDBfbnBYRjNKVURINGJaZkdDZUVOT1VmSVJmcXZsWEljUWlfVG9rZW46UmlpbmJybkljb2tPakZ4UjJWVmNUS1YybkFjXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=Njg5Yzg1NzAyOWJlOGNjNTE0NGI2YWIyNGY1OWJmOGRfQXByb0xod3U0NzRadkJnSkdKd2xDZHRzTmtBT3UxWG1fVG9rZW46SWdZV2J5Zm1Nb3hmOW14a3hDMmNkbHo2blNHXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182434178.png" alt="image-20231115182434178"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182441959.png" alt="image-20231115182441959"></p>
 <p><code>IoTDBJmxReporter</code> 的设计思路是：</p>
 <ol>
 <li>所有指标项天然实现 MBean 接口</li>
 </ol>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NTQzZDNmYzRjM2IzOGQ2YWVlN2NhN2RjMDBlZDMzZjdfQnVPcmF2V0xTUDZvWlNMeEFZZ1ZYVUoxNFJZNGJmeFdfVG9rZW46VFUxbWJwZ1lCb09lczJ4VXdROWNzdmJibkZkXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=OTRjMTNjOGU3ZTE2ZWViOGQ3YTJjZGY1ODJmNjAzNWFfa3dvUDFVYjBhM2NwYnhYbFE4QVZwbmRCeFJOZ1Ntc3dfVG9rZW46RlY2M2JUUzlWb2VjR1J4WGdHN2NqdjI3blJRXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182457114.png" alt="image-20231115182457114"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182508237.png" alt="image-20231115182508237"></p>
 <ol start="2">
 <li><code>IoTDBJmxReporter</code> 的作用仅为监听 <code>IoTDBMetricManager</code>，当有新指标创建时，将其注册到 JMX 中。当 <code>ReporterType</code> 不为 JMX 时，所有指标项不会被注册到 JMX 中。<ol>
 <li>该实现在不开启 JmxReporter 时不会有额外性能开销；在开启 JmxReporter 时，由于 JmxReporter 只需完成注册操作，相比 Micrometer 的实现少了创建对象的性能开销。</li>
 </ol>
 </li>
 </ol>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NThhMGQ4OTA0ZDJjNTNlZTkyM2VlYTVjNDIwYjE2OWRfOE80TVhlQzNaUUpDT3dRbHVhUWJldzBmV29pd0F4T3pfVG9rZW46RWJSN2J2VmNMb1UzdEZ4a0NkSmM2dGpmbjBkXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=N2NkODE2NjFhMTFlOGZlNzA3MWZjYjBmODY4ZWVkYThfMVZ0WHlTVUhXa3BQQnVyR3p5azk1VllqRXhmWkJjdlpfVG9rZW46WW9KWWJkaERnb3c5U2R4VWFlY2NISDNMbmRjXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182518746.png" alt="image-20231115182518746"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182529865.png" alt="image-20231115182529865"></p>
 <p><strong>踩坑：</strong>MBean 的接口需要和实现类在同一个包下，且类名、接口名必须严格对应，且 objectName 必须符合 <a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_21383435/article/details/111051784">MBean 规范</a></p>
 <ol start="3">
 <li><strong>实现效果：</strong></li>
 </ol>
 <p>在 org.apache.iotdb.metrics 下有各指标的 jmx 预览项。</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=Y2QxODc4NTYwNzI4YTY1OWY3NDUyYjA2OTczNTQ4ZTZfOTU3b2VVWVNPMmpwZUpsVVlISmJTeDZadE91Ykh0Q2pfVG9rZW46WXpPOGJobnNNb2p0eG94UWt1Y2Nhek9UbmhmXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZmYzNWZlZDAyNTdkNTlhM2Y5NTNhY2QzNTA4YmIzOGVfc05UU00xdjh3NHNtbEUxRXc1R2ZHMWZNaWxDN3B6MnJfVG9rZW46UnZBbmJkU2FubzZDT1p4cFJTS2NkUWVGbnZmXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NzZiZjY0N2EyZTFhYWM0YWE4M2M1NjUxYjhiZjBlMTVfV1poeDRFcWFaSzR1cUhOVU5kZUJySEZxTEIxMXBwWmtfVG9rZW46TUFmQmJGTFZOb1FSMHd4U25nTmN0dDhzblZkXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182542803.png" alt="image-20231115182542803"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182553360.png" alt="image-20231115182553360"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182604536.png"></p>
 <h1 id="4-优化效果"><a href="#4-优化效果" class="headerlink" title="4. 优化效果"></a>4. 优化效果</h1><ol>
 <li><strong>环境</strong></li>
 </ol>
-<p>在某环境负载下，1C1D 测试。</p>
+<p>在某环境负载下，1C1D (IoTDB 1 ConfigNode + 1 DataNode） 测试。</p>
 <ul>
 <li>baseline：<a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/commit/1dd5a200281aff1f42a9d7abdbde9d172445d4f6">1dd5a200281aff1f42a9d7abdbde9d172445d4f6</a></li>
 <li>对比优化后：<a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/commit/a4510266fdb74e95f0cfabec36ad3f16155eaa60">a4510266fdb74e95f0cfabec36ad3f16155eaa60</a></li>
@@ -584,9 +587,9 @@
 <ul>
 <li>优化前（1dd5a200281aff1f42a9d7abdbde9d172445d4f6）：metrics 整体占比大约在 <strong>9.79%</strong></li>
 </ul>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NDZlNjg5YmJlMDQyOWRhMmQ0MTVhZTUzNmUwOGVjMzZfZ0FKbW41VFVBUXRmN1dRd0tsQ3pwRDRRdWdKdnJhc0JfVG9rZW46V0dybGJUVnVUb1ZnMFl4OVo4UWNQWmhSbk5kXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182623578.png" alt="image-20231115182623578"></p>
 <p>优化后（a4510266fdb74e95f0cfabec36ad3f16155eaa60）：metrics 整体占比大约在 **5.81%<strong>，优化了</strong>41%**的性能</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=NTkyY2ZlY2Q1ODQ5MWFkMjZiMmE0NGI3ZGRhZjdiYjJfYnVJcldUZHAxdVpYWEt0UkNGVHo4S1lSdFZOWlgwdlZfVG9rZW46U2dpZ2J3WjFib1phdlh4QTR5M2NOQ2xKbm1jXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182634791.png" alt="image-20231115182634791"></p>
 <h1 id="5-总结"><a href="#5-总结" class="headerlink" title="5. 总结"></a>5. 总结</h1><ol>
 <li><p><strong>CPU 开销</strong>：9.79% -&gt; 5.81%，优化了 41%。</p>
 </li>
@@ -616,16 +619,16 @@
 <li><strong>配置</strong></li>
 </ol>
 <p>打开 setting，新增 CPU profiler。options 经个人测试，填写<code>event=cpu,interval=1ms</code>的实际体验比较好</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=MDViZTNhODNiMGY0Y2UzMDA0MTUxYmEzOTQ0YTU3ZWZfdWFHY0F3ZVVrdjFKRzJKREVDTmkxMlZLTFF4WDJpWE9fVG9rZW46RU5Jc2JVblNQbzNVQ014bDFKR2NZZFZ1bnBmXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
-<ol>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182705428.png" alt="image-20231115182705428"></p>
+<ol start="2">
 <li><strong>使用</strong></li>
 </ol>
 <p>在 run 项目时选中 profiler 即可</p>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=YTJiZDJkMzgzNjUwYTU3ZjI0NmRmODg3ZDMzYzMxZWFfOU9EUmFKZktDZ1c1WDBLWGFXZnhFVFhYMkp4Wjdsa1hfVG9rZW46VHoxUGJCemtob0JnUFl4RnlHcWNLUlF2bkVnXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
-<ol>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182714816.png" alt="image-20231115182714816"></p>
+<ol start="3">
 <li><strong>查看结果</strong></li>
 </ol>
-<p><img src="https://apache-iotdb.feishu.cn/space/api/box/stream/download/asynccode/?code=ZWNhMmUwNTg3MjQ2MjFjMDBkMjcwNzhlYjg4M2UxMWZfZ1dacTJDZUt1WklmbFVuU3pUREZxaEVLelUxVmROWFlfVG9rZW46TTNpUWJKakFrbzdON3J4WGtETmNDQlN3bmVmXzE3MDAwMjkyMTg6MTcwMDAzMjgxOF9WNA" alt="img"></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115182725287.png" alt="image-20231115182725287"></p>
 <h1 id="Ref"><a href="#Ref" class="headerlink" title="Ref"></a>Ref</h1><ol>
 <li><a target="_blank" rel="noopener" href="https://izualzhy.cn/dropwizard-metrics#14-histograms">https://izualzhy.cn/dropwizard-metrics#14-histograms</a></li>
 <li><a target="_blank" rel="noopener" href="https://metrics.dropwizard.io/4.1.1">https://metrics.dropwizard.io/4.1.1</a></li>
