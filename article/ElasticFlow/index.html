@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      论文阅读-ElasticFlow：training plf for Distributed DL 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog 👋</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="_blank" href="mailto:junzhi.pengzna@gmail.com">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Jul 06, 2023
+  </h3>
+  <h1>
+    论文阅读-ElasticFlow：training plf for Distributed DL
+  </h1>
+  <div class="content markdown-body">
+    <p><a target="_blank" rel="noopener" href="https://xinjin.github.io/files/ASPLOS23_ElasticFlow.pdf">ElasticFlow: An Elastic Serverless Training Platform for Distributed Deep Learning</a></p>
+<p>由于笔者将原阅读报告写在 word 上，本文是从 word 复制过来，因此在中英文之间的空格等方面可能有一些格式问题。请读者见谅~</p>
+<h1 id="1-论文研究背景、动机与主要贡献"><a href="#1-论文研究背景、动机与主要贡献" class="headerlink" title="1. 论文研究背景、动机与主要贡献"></a>1. 论文研究背景、动机与主要贡献</h1><h2 id="1-1-研究背景"><a href="#1-1-研究背景" class="headerlink" title="1.1. 研究背景"></a>1.1. 研究背景</h2><ol>
+<li><p>Distributed Training for Deep Learning： Deep Learning（DL）发展火热，为许多应用程序和服务提供支持。相应地，训练DL模型成为一项重要工作。而对于包括许多迭代的DL训练任务，其非常耗时，因此分布式训练被广泛用于加速DL训练过程。</p>
+</li>
+<li><p>Serverless Computing（或FaaS）： Serverless Computing能够对用户屏蔽底层硬件资源的使用和配置，使得用户只需要用函数描述workload并提交至Serverless平台即可。这种计算模式将System相关的底层资源管理offload给服务提供商，让用户专注于解决业务问题。</p>
+</li>
+<li><p>Elastic Training：相比于已提出的许多解决方案，ElasticFlow 不关注如何加速单个 job，而是基于弹性训练的研究进展，在多任务场景的任务调度下实现应用弹性缩放，在云中调度多个作业并利用弹性特性以无服务的方式为作业提供性能保证。</p>
+</li>
+</ol>
+<h2 id="1-2-动机"><a href="#1-2-动机" class="headerlink" title="1.2. 动机"></a>1.2. 动机</h2><p>本文从已有的DL分布式训练痛点出发，主要提出了以下2点动机：</p>
+<ol>
+<li><p><strong>Server centric架构中DL相关问题与系统问题高度耦合。</strong> 对于DL开发者来说，使用server-centric风格的分布式训练时除了配置编写DL相关的业务问题，还需要配置低层的系统问题，显式地请求硬件资源并配置实体物理机的各种参数，如GPU的local batch size、worker数量等。这些系统方面的底层工作对DL开发者来说尤具挑战性。</p>
+</li>
+<li><p>大多数现有解决方案不具备DL作业资源运行时的弹性扩展功能 ，从而<strong>无法提供性能保证，即保证在DDL（截止日期）之前完成作业。</strong>大多数现有解决方案侧重于优化JCT（作业完成时间），但却忽略了对作业DDL的性能保证。它们缺乏弹性向上或向下扩展调整作业资源以优化集群范围内的资源利用率并满足DDL的能力和灵活性。</p>
+</li>
+</ol>
+<h2 id="1-3-主要贡献"><a href="#1-3-主要贡献" class="headerlink" title="1.3. 主要贡献"></a>1.3. 主要贡献</h2><ol>
+<li><p>设计出了分布式DL训练的弹性Serverless Computing平台ElasticFlow解决上述痛点，ElasticFlow将DL业务问题与资源管理配置等系统问题解耦，对用户屏蔽底层系统细节，同时利用弹性扩展来保证DL任务的DDL。</p>
+</li>
+<li><p>提出了minimum satisfactory share的metric来获取作业在非线性scaling曲线下满足DDL所需的最小GPU数量。</p>
+</li>
+<li><p>设计了admission control算法 ，基于minimum satisfactory share进行准入控制，保证所有被允许的作业都能在DDL前完成。</p>
+</li>
+<li><p>设计了一种弹性资源分配算法 ，基于递减收益为已允许的作业弹性分配GPU以最大化资源利用率。</p>
+</li>
+<li><p>实现了ElasticFlow的系统原型 ，并将其与PyTorch集成。测试显示，在满足DDL作业数量的指标上，ElasticFlow的效果比STOA优秀1.46-7.65倍。</p>
+</li>
+</ol>
+<h1 id="2-论文问题描述或定义"><a href="#2-论文问题描述或定义" class="headerlink" title="2. 论文问题描述或定义"></a>2. 论文问题描述或定义</h1><p>本文的问题描述有2个方面： </p>
+<h2 id="2-1-分布式训练的2个问题"><a href="#2-1-分布式训练的2个问题" class="headerlink" title="2.1. 分布式训练的2个问题"></a>2.1. 分布式训练的2个问题</h2><ul>
+<li><strong>训练吞吐（throughput）随 GPU 的数量非线性增长 (non-linear scaling curve)</strong> 。由于参数同步和其他开销，吞吐量不会随着工作线程的数量线性增加。传统的最早截止日期优先（early-deadline-firt，EDF）算法虽然对满足截止日期是有效的，但这种解决方案将整个集群视作一个逻辑工作者，不适用于非线性scaling任务。ElasticFlow的DDL感知调度应该考虑非线性scaling场景。</li>
+<li><strong>Worker的拓扑位置（placement）影响分布式任务的性能</strong>。 并且拓扑相关的布局进一步影响训练吞吐的scaling曲线（Topology-aware），使得该问题与前述问题交织在一起。在为作业分配资源时，ElasticFlow应该结合实际的worker placement考虑一组scaling曲线。</li>
+</ul>
+<h2 id="2-2-算法设计时的具体优化目标"><a href="#2-2-算法设计时的具体优化目标" class="headerlink" title="2.2. 算法设计时的具体优化目标"></a>2.2. 算法设计时的具体优化目标</h2><ol>
+<li><p>Minimum satisfactory share： 对于每个作业，找到能满足其DDL所需的最低资源数量</p>
+</li>
+<li><p>Admission control： 对于新到达的作业，只有ElasticFlow能保证其作业截止日期时作业才能被接受。具体定义如下：</p>
+<p>在如下约束条件下（具体解释：约束1表示每个job_i都能在DDL前达到终止条件，约束2表示对于任何时隙t，所有job所分配的GPU数量总和不能超过系统资源总和)<img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/wps1.jpg" alt="img"></p>
+<p>对所有job按照DDL进行升序排序，  若下式成立（对于任意i，前i个job的GPU时间总和小于系统GPU总数与第i个工作DDL（单位为time unit）的乘积)<img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/wps2.jpg" alt="img"> 则存在合法的资源分配，可以保证作业能在DDL之前完成。</p>
+</li>
+<li><p>Resource allocation： 在满足minimum satisfactory share的基础上，将剩余的空闲资源分配给作业，以进一步提高资源利用率。分配时，需要考虑收益递减效益，即：由于GPU的吞吐scaling曲线随GPU数量是非线性的，一个工作拥有的GPU数量越多，其消耗的GPU时间越多。</p>
+<p>对于每一个作业，考虑下一个时隙的资源分配情况，优化目标如下式所述：在满足三个约束条件（1.满足所有工作的DDL 2.总分配GPU数目不超过当前可用 GPU 数目 3.在下一个时隙中所有GPU均被分配，除非给任一工作分配更多资源都会导致执行更慢）的情况下，  最小化所有工作的GPU时间之和 。</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/wps3.jpg" alt="img"></p>
+</li>
+</ol>
+<h1 id="3-论文提出的新思路、新理论、或新方法"><a href="#3-论文提出的新思路、新理论、或新方法" class="headerlink" title="3. 论文提出的新思路、新理论、或新方法"></a>3. 论文提出的新思路、新理论、或新方法</h1><h2 id="3-1-架构层面"><a href="#3-1-架构层面" class="headerlink" title="3.1. 架构层面"></a>3.1. 架构层面</h2><p>ElasticFlow只对DL开发者暴露一个高层次的serverless API。DL开发人员将他们的工作作为serverless function提交给ElasticFlow，随后ElasticFlow利用资源弹性，根据作业的截止日期和集群状态动态地为作业分配资源。Serveless function的参数如下：</p>
+<table>
+<thead>
+<tr>
+<th>参数名称</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>DNN模型</td>
+<td>要参与训练的DNN模型</td>
+</tr>
+<tr>
+<td>超参数</td>
+<td>如Global batch size、学习率等</td>
+</tr>
+<tr>
+<td>终止条件</td>
+<td>指示工作完成的条件，如最大迭代次数</td>
+</tr>
+<tr>
+<td>DDL</td>
+<td>DL开发者希望完成训练的时间节点</td>
+</tr>
+<tr>
+<td>其它训练组件</td>
+<td>数据集、优化器等</td>
+</tr>
+</tbody></table>
+<p>在serverless API下层加入admission control、resource allocation等组件，对DL开发者屏蔽底层系统资源调度细节。</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/wps4.jpg" alt="img"> </p>
+<h2 id="3-2-实现层面"><a href="#3-2-实现层面" class="headerlink" title="3.2. 实现层面"></a>3.2. 实现层面</h2><ol>
+<li><p>Minimum   satisfactory   share： 提出minimum satisfactory share这一指标，将其定义为：每个作业能满足其DDL所需的最低资源数量，以解决深度学习任务中scaling凹曲线所带来的GPU数量增加收益递减问题。</p>
+</li>
+<li><p>Admission   control： 基于minimum satisfactory share进行准入控制，对提交的任务进行submit或drop操作，保证所有任务都能在DDL前完成。</p>
+<ol>
+<li>当集群中没有其它任务时，可以通过二分查找来获得满足已有任务DDL需求的最少GPU，从而完成分配。</li>
+<li>当集群中有其它任务时，考虑某个任务完成DDL所需的GPU需要依赖于其它任务的资源占用情况。而由于DL任务的吞吐scaling曲线是非线性的，本文提出使用  渐进式填充算法（progressive   filling） 来判断新任务是否能够被满足。</li>
+<li>该算法的具体描述如下： 该算法本质上是一个贪心算法，对于每次需要调度任务时，先将新添加的任务添加到任务队列中并按照DDL升序排序，随后按顺序逐个从任务队列中取出任务并调用渐进式填充算法。对每一个任务，渐进地增加GPU分配数量，并计算每个时隙下的工作量，对工作量求和，判断总工作量是否满足任务所需工作量。如果在系统已有GPU资源范围内，找不到一种调度策略满足任务在DDL前完成工作，则丢弃（drop）该工作；否则，提交（submit）该工作。</li>
+</ol>
+</li>
+</ol>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/wps5.jpg" alt="img"> </p>
+<ol start="3">
+<li>Resource   allocation： 目标是在满足minimum satisfactory share的基础上，将剩余的空闲资源分配给作业，充分利用GPU，同时保证所有已提交任务的DDL。<ol>
+<li>本文为资源分配开发了一个贪心算法，将剩余的GPU分配给具有最高边际效益的任务。</li>
+<li>该算法的具体描述如下： 在保证分配给任务新GPU不会导致任务完成时间变长以及minimum satisfactory share的基础上，对任务逐个分配 GPU，计算任务分配GPU后的效益，并以此确定任务的优先级添加至优先队列中。随后在队列中的任务依次出队，实际分配GPU时每次分配给边际效益最高的任务，直到所有GPU被分配完。</li>
+</ol>
+</li>
+</ol>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/wps6.jpg" alt="img"> </p>
+<ol start="4">
+<li>Job   placement： 目标是尽量减少任务拓扑位置（worker placement）对DL任务效益的影响。本文提出了两个具体策略来实现上述目标：<ol>
+<li>开发了一种  topology  -  aware的工作分配算法 ：使用多层分层树来获取GPU拓扑，树的叶节点代表GPU，每个内部结点代表某种连接。为了放置作业，每次找到一个合适的子树，其中包含足够的GPU来容纳作业。而寻找合适子树的方法是  Best  -  Fit ，每次选择空闲GPU数量最接近所需GPU数量的子树，使得作业尽可能分配导同一拓扑的集群中，分配尽可能高的带宽，避免吞吐的低估和资源用量的高估。</li>
+<li>使用  buddy   allocation和job   migration 来消除resource fragmentation，通过buddy allocation和job migration来消除资源碎片。并将每个工作的worker数量限定为2的幂次，如此能保证如果集群中有足够的空闲GPU用于某个作业，则存在包含足够GPU的子树。</li>
+</ol>
+</li>
+</ol>
+<h1 id="4-论文方法的理论分析或实验评估方法与效果"><a href="#4-论文方法的理论分析或实验评估方法与效果" class="headerlink" title="4. 论文方法的理论分析或实验评估方法与效果"></a>4. 论文方法的理论分析或实验评估方法与效果</h1><h2 id="4-1-评估方法"><a href="#4-1-评估方法" class="headerlink" title="4.1. 评估方法"></a>4.1. 评估方法</h2><p>本文在16台服务器的集群上进行测试，其共包含128个NVIDIA A100 GPU。每台服务器配备8个40GB NVIDIA A100 GPU、96核、900GB RAM和8个NVIDIA Mellanox HDR InfiniBand HCAs。</p>
+<ol>
+<li><p>本文在A100 GPU上开发了用于模拟作业级事件的模拟器，通过测试台的物理GPU服务器作为模拟器的输入，对每个作业的吞吐量展开分析</p>
+</li>
+<li><p>对于每个作业，本文随机选择一个具有batch size的DNN模型，使用跟踪中的持续事件和预先测量的吞吐量来计算每个作业所需的迭代次数。</p>
+</li>
+</ol>
+<p>本文主要对以下  2个指标 进行评估：</p>
+<ol>
+<li><p>Deadline satisfactory ratio，即作业在截止日期前完成的比例。</p>
+</li>
+<li><p>Cluster efficiency（CE），它衡量集群中资源的利用效率，具体数学定义如下（其中M是集群中GPU数量，tpt是吞吐量）：</p>
+</li>
+</ol>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/wps7.jpg" alt="img"> </p>
+<p>对于SLO作业，使用上述两个指标；对于best-effort作业，主要比较其JCT（作业完成时间）</p>
+<h2 id="4-2-效果"><a href="#4-2-效果" class="headerlink" title="4.2. 效果"></a>4.2. 效果</h2><p>本文选取了6个baseline进行比较，分别是：</p>
+<ul>
+<li>Earliest-Deadline-First (EDF)</li>
+<li>Gandiva</li>
+<li>Tiresias</li>
+<li>Themis</li>
+<li>Chronus</li>
+<li>Pollux（STOA）</li>
+</ul>
+<p>与EDF、Gandiva、Tiresias、Themis、Chronus和Pollux相比，ElasticFlow将能够满足截止日期的作业数量分别提高了8.0倍、2.7倍、2.0倍、2.3倍、1.6倍和2.0倍。在更大的规模上(在16台服务器上，128个GPU)，与EDF、Gandiva、Tiresias、Themis和Chronus相比，ElasticFlow能够满足截止日期的作业数量分别提高了7.65倍、3.17倍、1.46倍、1.71倍和1.62倍。平均而言，与EDF、Gandiva、Tiresias、Themis和Chronus相比，ElasticFlow将截止日期满意率分别提高到12.95倍、2.58倍、2.15倍、1.76倍和1.68倍。</p>
+<h1 id="5-总结"><a href="#5-总结" class="headerlink" title="5. 总结"></a>5. 总结</h1><h2 id="5-1-论文优点"><a href="#5-1-论文优点" class="headerlink" title="5.1. 论文优点"></a>5.1. 论文优点</h2><ol>
+<li>敏锐察觉到现有分布式DL训练平台的痛点，能够有效结合STOA和现有大部分方法优点，提出了一个serverless架构的弹性计算平台ElasticFlow，大大简化DL开发人员们的使用过程，并能为DL任务提供DDL前完成的性能保证。</li>
+<li>考虑到了分布式训练中的两个挑战：训练吞吐随GPU数量非线性增长以及Worker placement对scaling的影响。同时考虑到了两个问题之间的相互影响，能够从现实情景出发，设计admission control、resource allocation、job placement等方法解决上述挑战。</li>
+<li>本文所提出的ElasticFlow还考虑了SLO和best-effort两种作业的调度情况，对于两种不同类型的作业保持了兼容和可扩展性。</li>
+<li>实验对比验证环境使用了严谨的指标，选取当下主流方法作为baseline，测试数据可信度高，结果令人欣喜。</li>
+<li>本文还对ElasticFlow的系统开销如profiling以及Scaling和migration进行了测试，得出在一般真实场景下，ElasticFlow的系统开销较小，相比于DL任务的训练时长几乎可以忽略不计。</li>
+</ol>
+<h2 id="5-2-论文缺点"><a href="#5-2-论文缺点" class="headerlink" title="5.2. 论文缺点"></a>5.2. 论文缺点</h2><ol>
+<li>在serverless架构的ElasticFlow平台中未对GPU加速话题进行探究。</li>
+<li>对于有恶意的用户（即恶意提交DL任务、挤兑系统资源等），本文未提出详细的额外策略和定价模型来防止此类情况发生。即：本文假定所有用户都是无恶意的，并根据他们的实际需求来按需设定DDL。</li>
+<li>对于集群中结点发生错误的情况，本文未设计详细策略。</li>
+</ol>
+<h2 id="5-3-本文的启示"><a href="#5-3-本文的启示" class="headerlink" title="5.3. 本文的启示"></a>5.3. 本文的启示</h2><ol>
+<li><p>Serverless架构可以对计算平台使用者屏蔽底层资源配置等系统方面知识，从而将专业使用（如DL业务知识）与底层系统解耦，让开发者专注于完成自己的开发任务。</p>
+</li>
+<li><p>分布式计算集群中需要设定弹性资源分配策略，以保证时刻最优工作效率。</p>
+</li>
+<li><p>实际算法设计中需要考虑现实中训练吞吐随GPU数量非线性增长以及Worker placement对scaling的影响，而不是用理想的线性模型进行概括。实际的集群worker分配时需要考虑到topology-aware。</p>
+</li>
+</ol>
+<h2 id="5-4-后续研究思路"><a href="#5-4-后续研究思路" class="headerlink" title="5.4. 后续研究思路"></a>5.4. 后续研究思路</h2><ol>
+<li><p>探究serverless架构下的加速器设计，如对GPU加速以支持更高的workload。</p>
+</li>
+<li><p>对于有恶意的用户（即恶意提交DL任务、挤兑系统资源等），设计详细的额外策略和定价模型来防止此类情况发生。</p>
+</li>
+<li><p>设计容错策略，处理集群中结点发生故障的情况，保证集群的高可用。</p>
+</li>
+</ol>
+<p>​             </p>
+
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/NASM/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/Zero-Change/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>
