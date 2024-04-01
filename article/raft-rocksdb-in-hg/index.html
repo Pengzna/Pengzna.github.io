@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      Raft + RocksDB 架构及其在 Apache Hugegraph 分布式存储中的运用 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog 👋</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="_blank" href="mailto:junzhi.pengzna@gmail.com">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Apr 01, 2024
+  </h3>
+  <h1>
+    Raft + RocksDB 架构及其在 Apache Hugegraph 分布式存储中的运用
+  </h1>
+  <div class="content markdown-body">
+    <blockquote>
+<p> RAFT 加 RocksDB 已经逐渐成为分布式 KV 领域的一种普适性架构，通过整合 RAFT log 还有rocksdb 的 WAL 可以在一定程度上降低数据的写放大问题。目前该部署方式的应用场景也比较广泛，耳熟能详的比如 TiKV、NebulaGraph 还有美团的 Cellar，在部署方式的选择上主要是基于 share nothing 架构，其中 RocksDB 充当了 RAFT 状态机的角色。</p>
+</blockquote>
+<p>Apache Hugegraph 今年也在构建分布式架构，其中 store 存储模块基于 Raft + RocksDB 向 Hugegraph Server 提供分布式存储服务，以达到存算分离的目的。</p>
+<p>近期笔者在 Apache Hugegraph 社区做了一次相关分享，以下为脱敏后的内容。</p>
+<h1 id="知识背景"><a href="#知识背景" class="headerlink" title="知识背景"></a>知识背景</h1><h2 id="RocksDB"><a href="#RocksDB" class="headerlink" title="RocksDB"></a>RocksDB</h2><h3 id="基本介绍"><a href="#基本介绍" class="headerlink" title="基本介绍"></a>基本介绍</h3><ol>
+<li><a target="_blank" rel="noopener" href="https://github.com/facebook/rocksdb">RocksDB</a> 是 Facebook 开发的一款高性能 C++ KV 存储引擎，底层基于 LSM Tree<strong>，其键值均允许使用二进制流。</strong><ol>
+<li>它的前身是重写自 <a target="_blank" rel="noopener" href="https://github.com/google/leveldb">LevelDB</a> (也就是大名鼎鼎的 Google 技术元老 Jeff Dean 在发布 GFS&#x2F;BigTale 后的 C++ 实现)</li>
+<li>Rocksdb <a target="_blank" rel="noopener" href="https://github.com/facebook/rocksdb/wiki">官方 WIK</a>I 算是最好的参考资料之一, 对核心特性都有比较好的解读</li>
+</ol>
+</li>
+<li><a target="_blank" rel="noopener" href="https://github.com/facebook/rocksdb/wiki/RocksJava-Basics">RocksJava</a> 是为了给 RocksDB 构建一个高性能，但是易用的 java 驱动的工程, 它由 3 层构成：<ol>
+<li>org.rocksdb 包里面的 Java 类，构成 RocksJava API。Java 用户只会直接接触到这一层。</li>
+<li>C++ 的 JNI 代码，提供 Java API 和 RocksDB 之间的链接。</li>
+<li>C++ 层的 RocksDB 本身，并且编译成了一个 native 库，被 JNI 层使用。</li>
+</ol>
+</li>
+</ol>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.rocksdb<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>rocksdbjni<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">version</span>&gt;</span>x.x.x<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>RocksJava 生成的文件</li>
+</ol>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401164704333.png" alt="image-20240401164704333"></p>
+<ul>
+<li>xxx.log：(日志) WAL 文件</li>
+<li>xxx.sst：数据文件</li>
+<li>CURRENT：是一个特殊的文件，用于声明最新的manifest日志文件</li>
+<li>IDENTITY：id</li>
+<li>LOCK：无内容，open 时创建，表示一个 db 在一个进程中只能被 open 一次，多线程共用此实例</li>
+<li>LOG：(主)统计日志</li>
+<li>MANIFEST：指一个独立的日志文件，它包含 RocksDB 的状态快照&#x2F;版本</li>
+<li>OPTIONS：配置信息</li>
+</ul>
+<h3 id="经典术语"><a href="#经典术语" class="headerlink" title="经典术语"></a>经典术语</h3><blockquote>
+<p>理解经典定义不只是帮我们理解 LSM 的设计, 更是帮我们理解从内存 -&gt; 磁盘, 从逻辑-&gt;物理视图上, 为何要引入这些概念, 更好的理解和传统 B-Tree 的区别</p>
+</blockquote>
+<ol>
+<li><strong>Column Family（列族）</strong></li>
+</ol>
+<p>在 RocksDB 3.0，增加了 Column Families 的支持。可以简单理解为：<strong>CF 约等于我们熟悉的 Table</strong></p>
+<p>RocksDB 的每个键值对都与唯一一个列族（column family）结合。如果没有指定 Column Family，<strong>键值对将会结合到“default” 列族。</strong>RocksDB 在开启 WAL 的时候保证即使crash，列族的数据也能保持一致性。通过 WriteBatch API，还可以实现跨列族的原子操作。</p>
+<p>列族提供了一种从逻辑上给数据库分片的方法。它的一些有趣的特性包括：</p>
+<ul>
+<li>支持跨列族原子写。意味着你可以原子执行Write({cf1, key1, value1}, {cf2, key2, value2})。</li>
+<li>跨列族的一致性视图。</li>
+<li>允许对不同的列族进行不同的配置</li>
+<li>即时添加／删除列族。两个操作都是非常快的。</li>
+</ul>
+<p>简单的说，不同的列族是共享 WAL 的（从而保证跨列族原子写），但是 memtable 和 SSTable 是隔离的。</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401164714015.png" alt="image-20240401164714015"></p>
+<ol start="2">
+<li><strong>Column (列)</strong></li>
+</ol>
+<ul>
+<li>传统的「列存」和「行存」<ul>
+<li>行存（常用于 OLTP）对应左边，列存（常用于 OLAP）对应右边</li>
+</ul>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401164728893.png" alt="image-20240401164728893"></p>
+<ul>
+<li>以 Hbase 为例，虽然它的官网写着：<em>HBase is a</em> column-oriented <em>database management system。</em>但是 RocksDB&#x2F;Hbase 其实不是上述的「列存」，以 Hbase 为例：</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401164739729.png" alt="image-20240401164739729"></p>
+<p>假如有这么一张 HBase 表，它的底层存储大概是这样的：</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401164749235.png" alt="image-20240401164749235"></p>
+<p>从上图可以看出：</p>
+<ul>
+<li>不同的列族存在不同的文件中（上面两个表格代表不同的 HFile）；</li>
+<li>整个数据是按照 Rowkey 进行字典排序的；</li>
+<li>每一列数据在底层 HFile 中是以 KV 形式存储的；</li>
+<li>相同的一行数据中，如果列族也一样，那么这些数据是顺序放在一起的。</li>
+</ul>
+<p>到这里大家应该可以看到，<strong>HBase 其实不是列式数据库</strong>，因为同一行数据，如果列族也一样，这些数据是存储在相邻位置的；这和上面的列式存储不太一样。所以说，HBase 既不像行式存储，又不像列式存储。它其实更像是面向列族的存储数据库，因为不同行相同的列族数据是相邻存储的；而同一行不同列族的数据是存储在不同位置的。</p>
+<p><strong>RocksDB 同理，我们可以直接看 RocksDB 底层的 SSTable 结构：</strong>（SSTable 的概念可以参考 ddia 第三章：<a target="_blank" rel="noopener" href="https://vonng.gitbooks.io/ddia-cn/content/ch3.html%EF%BC%89">https://vonng.gitbooks.io/ddia-cn/content/ch3.html）</a></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401164802092.png" alt="image-20240401164802092"></p>
+<p>重点看一下 Data Block：data block <strong>顺序存储</strong> key&#x2F;value，对于单个 block 会保存5个数值</p>
+<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">Entry</span> &#123;</span><br><span class="line">  varint sharedKeyLength;</span><br><span class="line">  varint unsharedKeyLength;</span><br><span class="line">  varint valueLength;</span><br><span class="line">  byte[] unsharedKeyContent;</span><br><span class="line">  byte[] valueContent;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">DataBlock</span> &#123;</span><br><span class="line">  Entry[] entries;</span><br><span class="line">  int32 [] restartPointOffsets;</span><br><span class="line">  int32 restartPointCount;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>第一部分 Entry 用来存储 key-value 数据。由于 sstable 中所有的 key-value 对都是<strong>严格按序存储</strong>的，用了节省存储空间，并不会为每一对 key-value 对都存储完整的 key 值，而是存储与上一个 key 非共享的部分，避免了 key 重复内容的存储。比如  “the car” 和 “the color” 相同的部分 “the“，为了节省空间，那么 key+1 开始，只记录key 不同的部分，例如：”olor”</li>
+<li><a href="https://link.zhihu.com/?target=https://www.jianshu.com/p/d6ce3593a69e">一个Entry分为5部分内容：</a><ul>
+<li>与前一条记录 key 共享部分的长度，为 0 则表示该 Entry 是一个重启点；</li>
+<li>与前一条记录 key 不共享部分的长度；</li>
+<li>value 长度；</li>
+<li>与前一条记录 key 非共享的内容；</li>
+<li>value 内容</li>
+</ul>
+</li>
+</ul>
+<p>可以看出 RocksDB 也是以 key 为基准进行有序存储的 KV 引擎，至于「列族」概念，只是逻辑上的划分，并不意味着它们真的是列存数据库。</p>
+<ol start="3">
+<li><strong>Snapshot（快照）</strong></li>
+</ol>
+<p>一个快照会捕获在创建的时间点的 DB 的一致性视图。快照在 DB 重启之后将消失。</p>
+<ol start="4">
+<li><strong>Iterator（迭代器）</strong></li>
+</ol>
+<p>RocksDB 迭代器允许用户以一个排序好的顺序向后或者向前遍历 db。它还拥有查找 DB 中的一个特定 key 的功能，为此，迭代器需要以一个排序好的流来访问 DB。</p>
+<ul>
+<li>而 RocksDB 数据库中的所有数据都是逻辑上排好序的。应用可以指定一种键值压缩算法来对键值排序。</li>
+</ul>
+<p>如果 ReadOptions.snapshot 被给出，那么迭代器会从一个快照里面返回数据。如果这是一个nullptr，迭代器隐式创建一个迭代器创建的时间节点的快照。该隐式快照会通过<a target="_blank" rel="noopener" href="https://wanghenshui.github.io/rocksdb-doc-cn/doc/Iterator.html">固定资源</a>来提供数据。隐式快照无法转换为显式快照。</p>
+<ol start="5">
+<li><strong>Compaction（压缩）&amp;&amp; flush</strong></li>
+</ol>
+<p>Compaction 是将一些 SST 文件合并成另外一些 SST 文件的后台任务。</p>
+<p>Flush 是将 memtable 的数据写入 SST 文件的后台任务。</p>
+<ul>
+<li>可以手动调用；compaction 是较重的操作，在某些负载较重的场景，会提前 compaction，减轻负载<ul>
+<li>比如业务低峰期，会集中 compaction</li>
+<li>进阶：Remote compaction，存算分离</li>
+</ul>
+</li>
+</ul>
+<h3 id="典型-API"><a href="#典型-API" class="headerlink" title="典型 API"></a>典型 API</h3><p>键值对的数据都是按照二进制处理的。键值都没有长度的限制。</p>
+<ul>
+<li><code>Put</code> 可以将一个键值对写入数据库。如果该键值已经存在于数据库内，之前的数据会被覆盖。</li>
+<li><code>WriteBatch</code> 可以将多个操作原子地写入数据库。<ul>
+<li>比如 hg 中利用 writeBatch 的原子性，封装为 <code>SessionOperatorImpl.commit</code></li>
+</ul>
+</li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401164836771.png" alt="image-20240401164836771"></p>
+<ul>
+<li><code>Get</code>允许应用从数据库里面提取一个键值对的数据。</li>
+<li><code>MultiGet</code> 允许应用一次从数据库获取一批数据。使用<code>MultiGet</code>获取的所有数据保证相互之间的一致性（版本相同）。</li>
+<li><code>Iterator</code> API 允许对 database 做 RangeScan。Iterator 可以指定一个 key，然后应用程序就可以从这个 key 开始做扫描。Iterator API 还可以用来对数据库内已有的 key 生成一个预留的迭代器。一个在指定时间的一致性的数据库视图会在 Iterator 创建的时候被生成。所以，通过 Iterator 返回的所有键值都是来自一个一致的数据库视图的。</li>
+<li><code>Snapshot</code> API 允许应用创建一个指定时间的数据库视图。<code>Get</code>，<code>Iterator</code>接口可以用于读取一个指定snapshot 数据。当然，<code>Snapshot</code>和<code>Iterator</code>都提供一个指定时间的数据库视图，但是他们的内部实现不同。<code>Snapshot</code>在数据库重启过程不能保持存在：reload RocksDB 会释放所有之前创建好的 snapshot。</li>
+</ul>
+<h3 id="有趣的事实"><a href="#有趣的事实" class="headerlink" title="有趣的事实"></a>有趣的事实</h3><blockquote>
+<p>RocksDB 从使用层的角度来说，难点在于：open 时要传入的 option 对象可配置的太多了，就连 rocksdb 开发者都没有给出一个完美的调优方案，只是给出了一系列调优参考值，建议的是在不同的应用场景中通过压测来进行参数调优。github上的调优参考链接如下：<a target="_blank" rel="noopener" href="https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide">https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide</a></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401164846804.png" alt="image-20240401164846804"></p>
+<p>此图为上面链接的文档中最后一段，可见 rocksdb 调优是多么复杂的一件事。</p>
+</blockquote>
+<h3 id="Demo"><a href="#Demo" class="headerlink" title="Demo"></a>Demo</h3><p>此处进行了本地演示，大体为展示 multiGet、put、writeBatch 等 API</p>
+<h2 id="Raft-JRaft"><a href="#Raft-JRaft" class="headerlink" title="Raft&#x2F;JRaft"></a>Raft&#x2F;JRaft</h2><p>详细了解 Raft 机制可以参考 <a target="_blank" rel="noopener" href="https://raft.github.io/raft.pdf">Raft 论文</a></p>
+<h3 id="基本介绍-1"><a href="#基本介绍-1" class="headerlink" title="基本介绍"></a>基本介绍</h3><p>Raft 是一个强一致性的共识算法，用于分布式系统中保持副本间的一致性，核心是日志复制和 leader 选举。</p>
+<p>Client 向复制状态机发送一系列能够在状态机上执行的命令，共识算法负责将这些命令以 Log 的形式复制给其他的状态机，这样不同的状态机只要按照完全一样的顺序来执行这些命令，就能得到一样的输出结果。</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401164854770.png" alt="image-20240401164854770"></p>
+<p>SOFA-JRaft 是一个基于 <a href="https://link.zhihu.com/?target=https://raft.github.io/">Raft</a> 一致性算法的生产级高性能 Java 实现，支持 MULTI-RAFT-GROUP，适用于高负载低延迟的场景。 (也可以理解为一个 <a target="_blank" rel="noopener" href="https://github.com/brpc/braft">braft</a> 的 Java 实现 - 见官方 README)</p>
+<p>上述状态机模型应用到 JRaft，大致架构如下：</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401164905202.png" alt="image-20240401164905202"></p>
+<p>因为 Raft 中，通常选举或写入需要半数以上副本同意，所以 RaftGroup 只允许半数以下的副本故障，也就是说 5 副本允许 2 个故障，6 个副本也是允许 2 个故障，可见 5 个和 6 个节点的容灾能力是一样的，所以一般来说建议用户配置的副本数量为奇数。</p>
+<p>而对于大部分生产环境，共识组一般就是 3 副本。因此上述架构图可拓展如下：</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401164922384.png" alt="image-20240401164922384"></p>
+<p>具体可以参考：<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/59385865">https://zhuanlan.zhihu.com/p/59385865</a></p>
+<h3 id="Multi-Raft"><a href="#Multi-Raft" class="headerlink" title="Multi-Raft"></a>Multi-Raft</h3><p>这里引用 Cockroach ( MultiRaft 的先驱，出来的比 TiDB 早 )对 MultiRaft 的定义：</p>
+<blockquote>
+<p>In <a target="_blank" rel="noopener" href="https://github.com/cockroachdb/cockroach">CockroachDB</a>, we use the <a target="_blank" rel="noopener" href="https://raftconsensus.github.io/">Raft consensus algorithm</a> to ensure that your data remains consistent even when machines fail. In most systems that use Raft, such as <a target="_blank" rel="noopener" href="https://github.com/coreos/etcd">etcd</a> and <a target="_blank" rel="noopener" href="https://www.consul.io/">Consul</a>, the entire system is one Raft consensus group. In CockroachDB, however, the data is divided into ranges, each with its own consensus group. This means that each node may be participating in hundreds of thousands of consensus groups. This presents some unique challenges, which we have addressed by introducing a layer on top of Raft that we call <a target="_blank" rel="noopener" href="https://github.com/cockroachdb/cockroach/tree/master/multiraft">MultiRaft</a>.</p>
+</blockquote>
+<p>在 CockroachDB 中，我们使用 Raft 一致性算法来确保在机器发生故障时数据也能保持一致。在大多数使用 Raft 的系统中，如 etcd 和 Consul，整个系统只有一个 Raft 共识组。然而，在 CockroachDB 中，数据被分成不同的范围，每个范围都有自己的共识组。这意味着每个节点都可能参与成千上万个共识组。这就提出了一些独特的挑战，我们通过在 Raft 之上引入一层 MultiRaft 来解决这些问题。</p>
+<p>简单来说，MultiRaft 是在整个系统中，把所管理的数据按照一定的方式切片，每一个切片的数据都有自己的副本，这些副本之间的数据使用 Raft 来保证数据的一致性，在全局来看整个系统中同时存在多个 Raft-Group，就像这个样子：</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401164934312.png" alt="image-20240401164934312"></p>
+<p>单个 Raft group 是无法解决大流量的读写瓶颈的，通过 Multi-Raft 来拓展读写性能是分布式系统的常见做法，JRaft 支持 Multi-Raft 架构，Hg 也采用了 Multi-Raft 架构。</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401164943032.png" alt="image-20240401164943032"></p>
+<h1 id="HG-分布式存储模型"><a href="#HG-分布式存储模型" class="headerlink" title="HG 分布式存储模型"></a>HG 分布式存储模型</h1><p>从图中可以看到 RaftGroup 和 patition 是一一对应的，patition 是逻辑上的概念，是多个 PartGraph 的集合。</p>
+<p>因为 RaftGroup 是横跨多个服务器节点的，每一个节点就是一个数据分片，也就是 shard，所以 partition 和 shard 是一对多的关系，partition 有几个副本就对应几个 shard。因为一台服务器会有多个 RaftGroup，也就是有多个 shard，而一个图实例对应的是一个 rocksdb 实例，所以 shard 和 store 是多对一的关系。</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401165034362.png" alt="image-20240401165034362"></p>
+<p>在代码里面：假设某个 store 实例有 n 个 shard，分别属于 n 个 RaftGroup</p>
+<ul>
+<li>那么该 store 实例将持有 n 个 PartitionEngine（Map&lt;String, PartitionEngine&gt;）</li>
+<li>每个 PartitionEngine 持有该 store 实例，对应 shard 的 RaftNode 引用，同时持有该 Partition 的所有 peer 信息<ul>
+<li>对应 JRaft 的 raftGroupService.start</li>
+</ul>
+</li>
+</ul>
+<p>具体分区哈希算法：详情参考 <a target="_blank" rel="noopener" href="https://github.com/apache/incubator-hugegraph/pull/1696">feat(hbase): support hash rowkey struct &amp; pre-init tables (#1696) 035a03e1</a></p>
+<h1 id="Store-模块交互流程概览"><a href="#Store-模块交互流程概览" class="headerlink" title="Store 模块交互流程概览"></a>Store 模块交互流程概览</h1><ol>
+<li>集群整体架构：</li>
+</ol>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401165043323.png" alt="image-20240401165043323"></p>
+<ul>
+<li>Server 和 store 类似存算分离</li>
+</ul>
+<ol start="2">
+<li>Store 内部的 request flow</li>
+</ol>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401145506418.png" alt="image-20240401145506418"></p>
+<h1 id="HG-在-RocksDB-的存储数据结构"><a href="#HG-在-RocksDB-的存储数据结构" class="headerlink" title="HG 在 RocksDB 的存储数据结构"></a>HG 在 RocksDB 的存储数据结构</h1><p>某个 graph 在 RocksDB 的数据存在下列 table（CF-列族）中：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> ConcurrentHashMap&lt;String, Integer&gt; tables = <span class="keyword">new</span> <span class="title class_">ConcurrentHashMap</span>&lt;&gt;() &#123;&#123;</span><br><span class="line">    put(<span class="string">&quot;unknown&quot;</span>, <span class="number">0</span>);</span><br><span class="line">    put(<span class="string">&quot;g+v&quot;</span>, <span class="number">1</span>);</span><br><span class="line">    put(<span class="string">&quot;g+oe&quot;</span>, <span class="number">2</span>);</span><br><span class="line">    put(<span class="string">&quot;g+ie&quot;</span>, <span class="number">3</span>);</span><br><span class="line">    put(<span class="string">&quot;g+index&quot;</span>, <span class="number">4</span>);</span><br><span class="line">    put(<span class="string">&quot;g+task&quot;</span>, <span class="number">5</span>);</span><br><span class="line">    put(<span class="string">&quot;g+olap&quot;</span>, <span class="number">6</span>);</span><br><span class="line">    put(<span class="string">&quot;g+server&quot;</span>, <span class="number">7</span>);</span><br><span class="line">&#125;&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>参考 <code>org.apache.hugegraph.backend.serializer.BinarySerializer</code> ，可以看出 HG 的边点等属性是如何序列化成 RocksDB 的 kv</p>
+<p>以边为例：</p>
+<ul>
+<li>以 partition_Id（基于 id hash 算出来的） + id 作为 key，以边&#x2F;点的具体 lable、properties 作为 value</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 以边为例，写 kv 的方法</span></span><br><span class="line"><span class="keyword">public</span> BackendEntry <span class="title function_">writeVertex</span><span class="params">(HugeVertex vertex)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (vertex.olap()) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">this</span>.writeOlapVertex(vertex);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="type">BinaryBackendEntry</span> <span class="variable">entry</span> <span class="operator">=</span> newBackendEntry(vertex);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (vertex.removed()) &#123;</span><br><span class="line">        <span class="keyword">return</span> entry;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> <span class="variable">propsCount</span> <span class="operator">=</span> vertex.sizeOfProperties();</span><br><span class="line">    <span class="type">BytesBuffer</span> <span class="variable">buffer</span> <span class="operator">=</span> BytesBuffer.allocate(<span class="number">8</span> + <span class="number">16</span> * propsCount);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Write vertex label</span></span><br><span class="line">    buffer.writeId(vertex.schemaLabel().id());</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Write all properties of the vertex</span></span><br><span class="line">    <span class="built_in">this</span>.formatProperties(vertex.getProperties(), buffer);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Write vertex expired time if needed</span></span><br><span class="line">    <span class="keyword">if</span> (vertex.hasTtl()) &#123;</span><br><span class="line">        entry.ttl(vertex.ttl());</span><br><span class="line">        <span class="built_in">this</span>.formatExpiredTime(vertex.expiredTime(), buffer);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// key</span></span><br><span class="line">    <span class="type">byte</span>[] name = <span class="built_in">this</span>.keyWithIdPrefix ?</span><br><span class="line">                  entry.id().asBytes() : BytesBuffer.BYTES_EMPTY;</span><br><span class="line">    <span class="comment">// value</span></span><br><span class="line">    entry.column(name, buffer.bytes());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> entry;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 写 key 的方法</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">writePartitionedId</span><span class="params">(HugeType type, Id id, BytesBuffer buffer)</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">this</span>.enablePartition) &#123;</span><br><span class="line">        buffer.writeShort(getPartition(type, id));</span><br><span class="line">        buffer.writeId(id);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        buffer.writeId(id);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="宏观设计"><a href="#宏观设计" class="headerlink" title="宏观设计"></a>宏观设计</h1><h2 id="Iterator-pattern"><a href="#Iterator-pattern" class="headerlink" title="Iterator pattern"></a>Iterator pattern</h2><p>对于 pd-store 架构，Hg 采用各种 Iterator 来进行数据读取</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401165100005.png" alt="image-20240401165100005"></p>
+<p>理解有两层原因：</p>
+<ol>
+<li>RocksDB 底层后端提供 Iterator 读方式，因此顺水推舟在整个架构中都用 Iterator</li>
+<li>采用 Iterator wrap Iterator 的方式，层层调用，<strong>可以实现类似火山模型的效果</strong> <strong>(向量化&#x2F;批处理模型可算是它的优化版, 也是 HG 之后可在部分查询上改进的思路之一)</strong></li>
+</ol>
+<blockquote>
+<p>火山模型是数据库界已经很成熟的解释计算模型，该计算模型将关系代数中每一种操作抽象为一个 Operator，将整个 SQL 构建成一个 Operator 树，从根节点到叶子结点自上而下地递归调用 next() 函数。每个 next() 函数处理一个 tuple。</p>
+<p>例如 SQL：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> Id, Name, Age, (Age <span class="operator">-</span> <span class="number">30</span>) <span class="operator">*</span> <span class="number">50</span> <span class="keyword">AS</span> BonusFROM PeopleWHERE Age  <span class="number">30</span></span><br></pre></td></tr></table></figure>
+
+<p>对应火山模型如下：</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401165115173.png" alt="image-20240401165115173"></p>
+</blockquote>
+<h2 id="Listener"><a href="#Listener" class="headerlink" title="Listener"></a>Listener</h2><p>用于广播、执行类似 AOP 的逻辑，实现一些切面动作</p>
+<ol>
+<li>Store 的状态：当 store 上线时，进行启动动作</li>
+</ol>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401165125425.png" alt="image-20240401165125425"></p>
+<ol start="2">
+<li>RaftGroup 的状态</li>
+</ol>
+<p>RaftStateListener：监听 RaftGroup 的 leader change 等信息</p>
+<ol start="3">
+<li>Replicator（JRaft 用于复制日志的组件）的状态</li>
+</ol>
+<p>ReplicatorStateListener：在状态改变时检查是否有 changeShard 任务</p>
+<ol start="4">
+<li>RocksDB 的状态</li>
+</ol>
+<p>RocksDBChangeListener：compaction 等动作</p>
+<ol start="5">
+<li>Partition 的状态</li>
+</ol>
+<p>PartitionChangedListener：用于在 change 的时候由 leader 通知其他 follower</p>
+<h2 id="Closure"><a href="#Closure" class="headerlink" title="Closure"></a>Closure</h2><p>类似闭包，实际用起来像 go defer 或 AOP，定义在结束某个活动时执行的动作</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">engine.addRaftTask(request.getGraphName(), request.getPartitionId(),</span><br><span class="line">                   RaftOperation.create(op, request), <span class="keyword">new</span> <span class="title class_">RaftClosure</span>() &#123;</span><br><span class="line">            <span class="meta">@Override</span></span><br><span class="line">            <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">(com.alipay.sofa.jraft.Status status)</span> &#123;</span><br><span class="line">                <span class="type">Status</span> <span class="variable">responseStatus</span> <span class="operator">=</span> Status.UNKNOWN;</span><br><span class="line">                <span class="keyword">switch</span> (HgRaftError.forNumber(status.getCode())) &#123;</span><br><span class="line">                    <span class="keyword">case</span> OK:</span><br><span class="line">                        responseStatus = Status.OK;</span><br><span class="line">                        <span class="keyword">break</span>;</span><br><span class="line">                    <span class="keyword">case</span> NOT_LEADER:</span><br><span class="line">                        responseStatus = Status.LEADER_REDIRECT;</span><br><span class="line">                        <span class="keyword">break</span>;</span><br><span class="line">                    <span class="keyword">case</span> NOT_LOCAL:</span><br><span class="line">                        responseStatus = Status.NO_PARTITION;</span><br><span class="line">                        <span class="keyword">break</span>;</span><br><span class="line">                    <span class="keyword">case</span> WAIT_LEADER_TIMEOUT:</span><br><span class="line">                        responseStatus = Status.WAIT_LEADER_TIMEOUT;</span><br><span class="line">                        <span class="keyword">break</span>;</span><br><span class="line">                    <span class="keyword">default</span>:</span><br><span class="line">                        responseStatus.setMsg(status.getErrorMsg());</span><br><span class="line">                &#125;</span><br><span class="line">                response.setStatus(responseStatus);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="meta">@Override</span></span><br><span class="line">            <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onLeaderChanged</span><span class="params">(Integer partId, Long storeId)</span> &#123;</span><br><span class="line">                RaftClosure.<span class="built_in">super</span>.onLeaderChanged(partId, storeId);</span><br><span class="line">                response.addPartitionLeader(</span><br><span class="line">                        <span class="keyword">new</span> <span class="title class_">HgCmdBase</span>.BaseResponse.PartitionLeader(partId, storeId));</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br></pre></td></tr></table></figure>
+
+<p>需要注意的是：JRaft 还使用 closure 来标识是否是 leader </p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onApply</span><span class="params">(Iterator inter)</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (inter.hasNext()) &#123;</span><br><span class="line">        <span class="keyword">final</span> <span class="type">RaftClosureAdapter</span> <span class="variable">done</span> <span class="operator">=</span> (RaftClosureAdapter) inter.done();</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">for</span> (RaftTaskHandler taskHandler : taskHandlers) &#123;</span><br><span class="line">                <span class="keyword">if</span> (done != <span class="literal">null</span>) &#123;</span><br><span class="line">                    <span class="comment">// Leader分支，本地调用</span></span><br><span class="line">                    <span class="keyword">if</span> (taskHandler.invoke(groupId, done.op.getOp(), done.op.getReq(),</span><br><span class="line">                                           done.closure)) &#123;</span><br><span class="line">                        done.run(Status.OK());</span><br><span class="line">                        <span class="keyword">break</span>;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    <span class="keyword">if</span> (taskHandler.invoke(groupId, inter.getData().array(), <span class="literal">null</span>)) &#123;</span><br><span class="line">                        <span class="keyword">break</span>;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">            LOG.info(<span class="string">&quot;&#123;&#125;&quot;</span>, Base64.getEncoder().encode(inter.getData().array()));</span><br><span class="line">            LOG.error(<span class="string">&quot;StateMachine&#123;&#125; meet critical error: .&quot;</span>, groupId, t);</span><br><span class="line">            <span class="keyword">if</span> (done != <span class="literal">null</span>) &#123;</span><br><span class="line">                LOG.error(<span class="string">&quot;StateMachine meet critical error: op = &#123;&#125; &#123;&#125;.&quot;</span>, done.op.getOp(),</span><br><span class="line">                          done.op.getReq());</span><br><span class="line">                <span class="comment">//    done.run(new Status(RaftError.EINTERNAL, t.getMessage()));</span></span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        committedIndex = inter.getIndex();</span><br><span class="line"></span><br><span class="line">        stateListeners.forEach(listener -&gt; &#123;</span><br><span class="line">            listener.onDataCommitted(committedIndex);</span><br><span class="line">        &#125;);</span><br><span class="line">        <span class="comment">// 清理数据</span></span><br><span class="line">        <span class="keyword">if</span> (done != <span class="literal">null</span>) &#123;</span><br><span class="line">            done.clear();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 遍历下一条</span></span><br><span class="line">        inter.next();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="心跳保活（with-TTL）"><a href="#心跳保活（with-TTL）" class="headerlink" title="心跳保活（with TTL）"></a>心跳保活（with TTL）</h2><p>HgStoreEngine 中，store 实例会定期向 pd 发送心跳。</p>
+<p>Store 的设计中，处处可见状态机思想：store 实例被设定为了四种状态，根据不同的状态，心跳会有不同的动作</p>
+<ul>
+<li>Unknown</li>
+<li>Offline<ul>
+<li>重新向 pd 注册，先拿 id，如果集群 ready，注册之，然后监听 partition 的消息（重启）</li>
+</ul>
+</li>
+<li>Online<ul>
+<li>与 pd 心跳，更新 storeInfo</li>
+<li>根据拿到的 cluster 信息，检查 cluster 是否异常（保活）</li>
+</ul>
+</li>
+<li>Tombstone（死亡）<ul>
+<li>什么也不做</li>
+</ul>
+</li>
+</ul>
+<h1 id="高可用"><a href="#高可用" class="headerlink" title="高可用"></a>高可用</h1><ol>
+<li>分布式架构原生保证一定的容错</li>
+<li>store 定期与 pd 心跳，同步元信息（伴有 TTL 保活），而 Pd 利用 RocksDB 将元信息持久化，保证了重启恢复。</li>
+<li>store 实例之间的副本同步过程，借助 JRaft 组件保证了重启恢复。 </li>
+<li>store 的 meta info（无论是 pd 还是 store）都借助 RocksDB 进行持久化，防止节点宕机信息丢失（存储在专门的图 hgstore-metadata 下）</li>
+</ol>
+<h1 id="高性能"><a href="#高性能" class="headerlink" title="高性能"></a>高性能</h1><ol>
+<li>并发执行：不多赘述</li>
+<li>异步任务：如 AsyncRPC</li>
+<li>上下文用 Byte 对象传输，减少序列化开销：如 RaftOperation</li>
+</ol>
+<h1 id="Ref"><a href="#Ref" class="headerlink" title="Ref"></a>Ref</h1><ol>
+<li><a target="_blank" rel="noopener" href="https://blog.csdn.net/weixin_44607611/article/details/113742388">https://blog.csdn.net/weixin_44607611/article/details/113742388</a></li>
+<li><a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/1785028">https://cloud.tencent.com/developer/article/1785028</a></li>
+<li><a target="_blank" rel="noopener" href="https://blog.csdn.net/penriver/article/details/117559188">https://blog.csdn.net/penriver/article/details/117559188</a></li>
+<li><a target="_blank" rel="noopener" href="https://wanghenshui.github.io/rocksdb-doc-cn/">https://wanghenshui.github.io/rocksdb-doc-cn/</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/facebook/rocksdb/blob/master/java/samples/src/main/java/RocksDBSample.java">https://github.com/facebook/rocksdb/blob/master/java/samples/src/main/java/RocksDBSample.java</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/165399524">https://zhuanlan.zhihu.com/p/165399524</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/340949657">https://zhuanlan.zhihu.com/p/340949657</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/145551967">https://zhuanlan.zhihu.com/p/145551967</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/59385865">https://zhuanlan.zhihu.com/p/59385865</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/61185934">https://zhuanlan.zhihu.com/p/61185934</a></li>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/478705155">https://zhuanlan.zhihu.com/p/478705155</a></li>
+</ol>
+
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/JVM-biased-lock/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/Blog-building-log/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>

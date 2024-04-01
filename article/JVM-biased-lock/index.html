@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      记一次由偏向锁引起的性能下降 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog 👋</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="_blank" href="mailto:junzhi.pengzna@gmail.com">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Mar 15, 2024
+  </h3>
+  <h1>
+    记一次由偏向锁引起的性能下降
+  </h1>
+  <div class="content markdown-body">
+    <p>近期，笔者为 Apache IoTDB 新增了 JVM 的若干优化 options，其中一条是 <code>-XX:-UseBiasedLock</code> 关闭偏向锁（因为偏向锁如今作用有限，JDK15 开始默认废弃；而取消偏向锁时会造成 safepoint 等待的 stw 开销）。然而，合入 pr 后发现若干场景发生了性能下降。</p>
+<p>由于偏向锁是过时且有开销的机制，因此将其关闭后，反而是负优化有点反直觉。第一次遇到这类问题，排查和解决下来都挺有意思的。</p>
+<p>偏向锁简介可以参考：<a target="_blank" rel="noopener" href="https://juejin.cn/post/6994404508344270878">https://juejin.cn/post/6994404508344270878</a></p>
+<h1 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h1><p>合入 <a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/pull/12088/files">https://github.com/apache/iotdb/pull/12088/files</a> 后</p>
+<ol>
+<li>合并导出场景耗时增加</li>
+<li>写入 1C1D、3C3D 场景无变化，3C5D 耗时增加</li>
+</ol>
+<h1 id="排查过程"><a href="#排查过程" class="headerlink" title="排查过程"></a>排查过程</h1><p>首先和社区同学讨论问题范围：</p>
+<ol>
+<li>写入是跨多个 commit 共同测试（可能其他 commit 是罪魁祸首），但导出合并是明确定位到该 <strong><a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/pull/12088/files">pr</a><strong>。</strong>因此接下来着重排查</strong> <strong><a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/pull/12088/files">pr</a></strong> <strong>对合并的影响</strong></li>
+<li>测试环境是 JDK11</li>
+</ol>
+<h2 id="初步思考"><a href="#初步思考" class="headerlink" title="初步思考"></a>初步思考</h2><p>感觉会影响查询和合并吞吐的，可能是 <code>-XX:SafepointTimeoutDelay=1000</code> <code>-XX:+SafepointTimeout</code>。这两个参数会在某个线程 Safepoint 超时时，将相关信息打印到标准输出里。可能是在某个时刻 Safepoint 超时的线程太多了，导致标准输出变多，影响了吞吐。</p>
+<p><strong>验证结果</strong>：注释掉上述参数，验证发现还是耗时高，说明罪魁祸首不是它们</p>
+<p><strong>补充验证：</strong>还把 IoTDB 启动脚本完全替换回了 <a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/pull/12088/files">pr</a> 修改之前的版本，发现无耗时异常，说明罪魁祸首在 <a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/pull/12088/files">pr</a> 里</p>
+<h2 id="再次思考"><a href="#再次思考" class="headerlink" title="再次思考"></a>再次思考</h2><p> <a target="_blank" rel="noopener" href="https://github.com/apache/iotdb/pull/12088/files">pr</a> 剩下涉及到的修改只有：</p>
+<ul>
+<li><strong>safepoint 相关优化：</strong>有点黑盒，可能造成耗时增加</li>
+<li><strong>取消偏向锁：</strong>偏向锁理论上已经过时， 取消它并无太多不妥，大多数场景多害少益，且有其他高性能锁作为替代，这也是 JDK15 不支持偏向锁的原因。但是由于它较为黑盒，理论上仍有可能造成耗时增加。</li>
+<li>线程内存从 1M -&gt; 512K：不会对性能有影响，除非 OOM</li>
+<li>GC 开启自适应：不会对性能有那么大的影响，且大部分场景是正优化</li>
+</ul>
+<p><strong>再次验证：</strong>注释掉 safepoint 所有优化，并打开了 safepoint 日志，发现问题仍然存在。</p>
+<p>而且 safepoint 日志显示：safepoint 耗时很少，平均毫秒级，总共 safepoint 耗时才 1s，且 GC 耗时也很少。因此应该不是 safepoint 和 GC 导致的问题。</p>
+<h2 id="发现问题"><a href="#发现问题" class="headerlink" title="发现问题"></a>发现问题</h2><p>联想到社区之前测试机器升级到 JDK17 后，也发生了类似的性能下降（当时笔者从 CPU、GC、内存 等角度，使用火焰图、JMH 等手段都没排查出来是哪里的问题），发现当时的耗时就跟本次开源版高耗时的情况差不多</p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401154231858.png" alt="image-20240401154231858"></p>
+<p>联想到本次 PR 内容之一是手动取消偏向锁 -XX:-UseBiasedLock（这里有一个背景是 JDK8、11 有偏向锁，JDK17 无偏向锁）</p>
+<p>而正好之前 JDK17 （无偏向锁）的合并耗时也很高，加上之前的几次实验，已经基本排除了 safepoint 等其他参数的影响，只剩下偏向锁取消和线程内存调整没有验证了，而线程内存调整应该不会影响性能，最多只会 OOM。</p>
+<p>因此推测是偏向锁取消导致的这次问题，但是偏向锁理论上已经过时，大多数场景多害少益，且有其他锁作为替代，这也是 JDK17 不支持偏向锁的原因。</p>
+<p><strong>验证结果：注释掉 -XX:-UseBiasedLock 后，耗时下降，问题消失。说明本次耗时增加是由于取消了偏向锁</strong></p>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20240401154251514.png" alt="image-20240401154251514"></p>
+<p>实锤了偏向锁的影响后，笔者还在之前 JDK 升级的测试环境进行验证：</p>
+<p><strong>验证结果：在 JDK17 的环境，手动添加偏向锁 -XX:+UseBiasedLock 后，耗时下降，问题消失。说明当时  JDK 升级后性能下降是由于 JDK17 默认废弃了偏向锁</strong></p>
+<h1 id="问题根因"><a href="#问题根因" class="headerlink" title="问题根因"></a>问题根因</h1><p>引入了 -XX:-UseBiasedLock 取消偏向锁，导致某些场景性能下降。</p>
+<p><a target="_blank" rel="noopener" href="https://openjdk.org/jeps/374">https://openjdk.org/jeps/374</a></p>
+<p>根据 openjdk 团队的 note，按理说 biased lock 如今已经是多害少益，且有更完善的锁机制进行替代，也因此 JDK 15 之后，biased lock 就默认关闭了。</p>
+<p>然而在合并等场景，关闭偏向锁后观测到性能下降。</p>
+<ul>
+<li><p>可能是由于如下场景较多：某线程长期持有某临界区资源，反复获取锁、释放锁，且临界区资源的锁竞争较少，导致偏向锁不太需要被取消。</p>
+</li>
+<li><p>因此偏向锁带来少 access 锁的收益大于了取消偏向锁 stw 的开销，总体上是正优化。相反，如果取消偏向锁，线程反复 access 锁的开销较大，带来耗时增加。</p>
+</li>
+</ul>
+<p>社区负责 compaction 的同学后续通过查看代码验证，也找到了代码根因：</p>
+<p>compaction 依赖底层 ByteArrayOutputStream 的读写接口，而 BAOS 的读写接口都是 Synchronized 修饰的同步方法。导致大量级的 Synchronized 拿锁放锁，进而放大了偏向锁的影响。</p>
+<h1 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h1><p>虽然 openjdk 声明了偏向锁的弊端，并在 jdk15 废弃之，但根据 IoTDB 的实践，取消偏向锁反而会带来负优化。</p>
+<p>由此看来，openjdk 的观点并不能奉为圭臬。真正废弃偏向锁的原因可能不是偏向锁性能差，可能是难以维护 || 机制复杂 || 行为难以预测等等。</p>
+<p>根据社区老师的指导和建议，软件要尽量控制不可控的因素。既然高版本 JDK 已经移除了偏向锁，那我们就不推荐使用（尽管偏向锁能在 IoTDB 的某些场景有一些优化 ）；对于低版本 JDK 默认使用偏向锁，我们也不会手动 disable</p>
+<p>因此，<strong>我们将移除对偏向锁的默认禁用（-XX:-UseBiasedLock)，对于 JDK15 以上已经默认 disable 偏向锁的高版本 JDK，我们也不会显式使用偏向锁</strong>。因为 JDK 未来可能完全废弃偏向锁，从维护软件稳定性的角度来说，我们只能去适应。</p>
+<h1 id="额外思考"><a href="#额外思考" class="headerlink" title="额外思考"></a>额外思考</h1><p>看八股好像记得 ReentrantLock 的性能比 Synchronized 好，思考：在高版本 JDK（默认关闭偏向锁），ReentrantLock 是否可以作为 Synchronized 的替代。</p>
+<p>ReentrantLock 和 Synchronized 的性能比较，使用 JMH 进行基准测试</p>
+<ul>
+<li>测试代码</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@BenchmarkMode(Mode.AverageTime)</span></span><br><span class="line"><span class="meta">@Measurement(iterations = 3)</span></span><br><span class="line"><span class="meta">@Fork(1)</span></span><br><span class="line"><span class="meta">@Warmup(iterations = 3, time = 1)</span></span><br><span class="line"><span class="meta">@State(Scope.Benchmark)</span> <span class="comment">// 测试多线程性能</span></span><br><span class="line"><span class="meta">@OutputTimeUnit(TimeUnit.NANOSECONDS)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">LockBenchmark</span> &#123;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> <span class="type">Object</span> <span class="variable">lock</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Object</span>();</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> <span class="type">ReentrantLock</span> <span class="variable">reentrantLock</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ReentrantLock</span>();</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> <span class="type">long</span> <span class="variable">cnt</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">static</span> <span class="type">long</span> <span class="variable">frequency</span> <span class="operator">=</span> <span class="number">10000</span>;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Benchmark</span></span><br><span class="line">  <span class="meta">@Threads(1)</span> <span class="comment">// 指定一个线程，重入 10000 次</span></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">testReentrantLockWithoutCompetition</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; frequency; i++) &#123;</span><br><span class="line">      doSomethingWithReentrantLock();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Benchmark</span></span><br><span class="line">  <span class="meta">@Threads(1)</span> <span class="comment">// 指定一个线程，重入 10000 次</span></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">testSynchronizedWithoutCompetition</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; frequency; i++) &#123;</span><br><span class="line">      doSomethingWithSynchronized();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Benchmark</span></span><br><span class="line">  <span class="meta">@Threads(10)</span> <span class="comment">// 指定十个线程</span></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">testReentrantLockWithCompetition</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; (frequency / <span class="number">1000</span>); i++) &#123;</span><br><span class="line">      doSomethingWithReentrantLock();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Benchmark</span></span><br><span class="line">  <span class="meta">@Threads(10)</span> <span class="comment">// 指定十个线程</span></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">testSynchronizedWithCompetition</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; (frequency / <span class="number">1000</span>); i++) &#123;</span><br><span class="line">      doSomethingWithSynchronized();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">doSomethingWithReentrantLock</span><span class="params">()</span> &#123;</span><br><span class="line">    reentrantLock.lock();</span><br><span class="line">    cnt += <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">if</span> (cnt &gt;= (Long.MAX_VALUE &gt;&gt; <span class="number">1</span>)) &#123;</span><br><span class="line">      cnt = <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    reentrantLock.unlock();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title function_">doSomethingWithSynchronized</span><span class="params">()</span> &#123;</span><br><span class="line">    cnt += <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">if</span> (cnt &gt;= (Long.MAX_VALUE &gt;&gt; <span class="number">1</span>)) &#123;</span><br><span class="line">      cnt = <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">    <span class="type">Options</span> <span class="variable">options</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">OptionsBuilder</span>().include(LockBenchmark.class.getSimpleName()).build();</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      <span class="keyword">new</span> <span class="title class_">Runner</span>(options).run();</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line"></span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>结果：JDK 1.8 M2 pro 带偏向锁</li>
+</ul>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">Benchmark                                          Mode  Cnt      Score       Error  Units</span><br><span class="line">LockBenchmark.testReentrantLockWithCompetition     avgt    <span class="number">3</span>   <span class="number">1466.112</span> ±  <span class="number">2447.627</span>  ns<span class="operator">/</span>op</span><br><span class="line">LockBenchmark.testReentrantLockWithoutCompetition  avgt    <span class="number">3</span>  <span class="number">84707.382</span> ±  <span class="number">4476.439</span>  ns<span class="operator">/</span>op</span><br><span class="line">LockBenchmark.testSynchronizedWithCompetition      avgt    <span class="number">3</span>   <span class="number">2669.839</span> ±   <span class="number">147.294</span>  ns<span class="operator">/</span>op</span><br><span class="line">LockBenchmark.testSynchronizedWithoutCompetition   avgt    <span class="number">3</span>  <span class="number">52546.483</span> ± <span class="number">37818.714</span>  ns<span class="operator">/</span>op</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>结果：JDK 1.8 M2 pro 不带偏向锁</li>
+</ul>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">Benchmark                                          Mode  Cnt      Score      Error  Units</span><br><span class="line">LockBenchmark.testReentrantLockWithCompetition     avgt    <span class="number">3</span>   <span class="number">1421.258</span> ± <span class="number">1710.012</span>  ns<span class="operator">/</span>op</span><br><span class="line">LockBenchmark.testReentrantLockWithoutCompetition  avgt    <span class="number">3</span>  <span class="number">83813.692</span> ± <span class="number">6111.888</span>  ns<span class="operator">/</span>op</span><br><span class="line">LockBenchmark.testSynchronizedWithCompetition      avgt    <span class="number">3</span>   <span class="number">3421.783</span> ± <span class="number">1129.167</span>  ns<span class="operator">/</span>op</span><br><span class="line">LockBenchmark.testSynchronizedWithoutCompetition   avgt    <span class="number">3</span>  <span class="number">50313.866</span> ± <span class="number">1219.218</span>  ns<span class="operator">/</span>op</span><br></pre></td></tr></table></figure>
+
+<p>结论： 在单线程不断重入，无锁竞争的情况下，Synchronized 无论是否开启偏向锁性能都优于 ReentrantLock。看来八股也不是准的 23333</p>
+<p>后续有时间考虑详细学习一下各类锁的实现，并用 Benchmark 测试性能</p>
+
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/GC-prefered-coding/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/raft-rocksdb-in-hg/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>

@@ -11,7 +11,7 @@
   
   <title>
     
-      JVM GC 调研与基于 Apache IoTDB 的 GC 监控设计 
+      JVM GC 调研与 Apache IoTDB GC 可观测性建设 
       
       
     
@@ -106,7 +106,7 @@
     Aug 30, 2023
   </h3>
   <h1>
-    JVM GC 调研与基于 Apache IoTDB 的 GC 监控设计
+    JVM GC 调研与 Apache IoTDB GC 可观测性建设
   </h1>
   <div class="content markdown-body">
     <h2 id="1-背景"><a href="#1-背景" class="headerlink" title="1. 背景"></a>1. 背景</h2><p>本文是作者在调研改进 IoTDB JVM GC 监控板块时产出的相关 wiki，主要包含 GC 基本知识、不同 JDK 下的 GC 算法细节，以及设计改进 IoTDB JVM GC 监控板块时的思路等内容。本文旨在优化 IoTDB 现有 GC 监控系统，结合实际生产需要，扩充现有 metric 指标，使其针对不同 JDK 的 GC Collector 能更精准、高效的进行监控。</p>
@@ -735,15 +735,15 @@
                              gc_cause);
   // 真正的停顿方法在 VMThread::execute(&amp;op) 中
   VMThread::execute(&amp;op);
-                                          
+                                                
   HeapWord* result = op.result();
   bool ret_succeeded = op.prologue_succeeded() &amp;&amp; op.pause_succeeded();
-                                          
+                                                
   *succeeded = ret_succeeded;
-                                          
+                                                
   return result;
 &#125;
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">4. do_collection_pause 会在 VMThread::execute(&amp;op) 里会产生停顿，再来看这个方法：</span><br><span class="line">5. ```C++</span><br><span class="line">   void VMThread::execute(VM_Operation* op) &#123;</span><br><span class="line">     Thread* t = Thread::current();</span><br><span class="line">     // 判断当前线程是否是 vm 线程</span><br><span class="line">     if (!t-&gt;is_VM_thread()) &#123;</span><br><span class="line">       // 跳过这里，其实这里的逻辑是当前不是 vm 线程是 java 线程或者 watcher 线程</span><br><span class="line">       // 会先将任务放到一个 queue 中，之后再执行</span><br><span class="line">       ......</span><br><span class="line">     &#125; else &#123;</span><br><span class="line">       // 如果是 vm 线程则会进入这里</span><br><span class="line">       ......</span><br><span class="line">       HandleMark hm(t);</span><br><span class="line">       _cur_vm_operation = op;</span><br><span class="line">       // 判断任务是否需要在安全点执行且当前是否在安全点</span><br><span class="line">       if (op-&gt;evaluate_at_safepoint() &amp;&amp; !SafepointSynchronize::is_at_safepoint()) &#123;</span><br><span class="line">         // 如果不是安全点,则等待所有线程进入安全点,然后把线程暂时挂起</span><br><span class="line">         // 这个类中有个状态 _state,所有 java 线程转换线程状态时会去判断这个状态然后</span><br><span class="line">         // 决定是否 block</span><br><span class="line">         SafepointSynchronize::begin();</span><br><span class="line">         // 开始任务, op 是刚刚传入的 VM_G1IncCollectionPause 操作任务类</span><br><span class="line">         // evaluate() 方法最后会调用 gc 操作任务类的 doit() 方法</span><br><span class="line">         op-&gt;evaluate();</span><br><span class="line">         // 安全点结束</span><br><span class="line">         SafepointSynchronize::end();</span><br><span class="line">       &#125; else &#123;</span><br><span class="line">         // 是安全点则直接执行</span><br><span class="line">         op-&gt;evaluate();</span><br><span class="line">       &#125;</span><br><span class="line">                                             </span><br><span class="line">       if (op-&gt;is_cheap_allocated()) delete op;</span><br><span class="line">                                             </span><br><span class="line">       _cur_vm_operation = prev_vm_operation;</span><br><span class="line">     &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">4. do_collection_pause 会在 VMThread::execute(&amp;op) 里会产生停顿，再来看这个方法：</span><br><span class="line">5. ```C++</span><br><span class="line">   void VMThread::execute(VM_Operation* op) &#123;</span><br><span class="line">     Thread* t = Thread::current();</span><br><span class="line">     // 判断当前线程是否是 vm 线程</span><br><span class="line">     if (!t-&gt;is_VM_thread()) &#123;</span><br><span class="line">       // 跳过这里，其实这里的逻辑是当前不是 vm 线程是 java 线程或者 watcher 线程</span><br><span class="line">       // 会先将任务放到一个 queue 中，之后再执行</span><br><span class="line">       ......</span><br><span class="line">     &#125; else &#123;</span><br><span class="line">       // 如果是 vm 线程则会进入这里</span><br><span class="line">       ......</span><br><span class="line">       HandleMark hm(t);</span><br><span class="line">       _cur_vm_operation = op;</span><br><span class="line">       // 判断任务是否需要在安全点执行且当前是否在安全点</span><br><span class="line">       if (op-&gt;evaluate_at_safepoint() &amp;&amp; !SafepointSynchronize::is_at_safepoint()) &#123;</span><br><span class="line">         // 如果不是安全点,则等待所有线程进入安全点,然后把线程暂时挂起</span><br><span class="line">         // 这个类中有个状态 _state,所有 java 线程转换线程状态时会去判断这个状态然后</span><br><span class="line">         // 决定是否 block</span><br><span class="line">         SafepointSynchronize::begin();</span><br><span class="line">         // 开始任务, op 是刚刚传入的 VM_G1IncCollectionPause 操作任务类</span><br><span class="line">         // evaluate() 方法最后会调用 gc 操作任务类的 doit() 方法</span><br><span class="line">         op-&gt;evaluate();</span><br><span class="line">         // 安全点结束</span><br><span class="line">         SafepointSynchronize::end();</span><br><span class="line">       &#125; else &#123;</span><br><span class="line">         // 是安全点则直接执行</span><br><span class="line">         op-&gt;evaluate();</span><br><span class="line">       &#125;</span><br><span class="line">                                                   </span><br><span class="line">       if (op-&gt;is_cheap_allocated()) delete op;</span><br><span class="line">                                                   </span><br><span class="line">       _cur_vm_operation = prev_vm_operation;</span><br><span class="line">     &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
 </code></pre>
 </li>
 <li><p>该方法会判断线程是否都进入安全区（安全区概念参考：<a target="_blank" rel="noopener" href="https://www.zhihu.com/question/371699670%EF%BC%8C%E8%AF%A5%E9%97%AE%E9%A2%98%E9%AB%98%E8%B5%9E%E5%9B%9E%E7%AD%94%E6%AF%94%E8%BE%83%E5%85%A8%E9%9D%A2%E7%9A%84%E9%98%90%E8%BF%B0%E4%BA%86%E5%AE%89%E5%85%A8%E5%8C%BA%E7%9A%84%E6%A6%82%E5%BF%B5%EF%BC%8C%E6%8C%BA%E5%8F%97%E7%94%A8%E7%9A%84%EF%BC%89%EF%BC%8C%E5%A6%82%E6%98%AF%EF%BC%8C%E6%89%A7%E8%A1%8C">https://www.zhihu.com/question/371699670，该问题高赞回答比较全面的阐述了安全区的概念，挺受用的），如是，执行</a> op-&gt;evaluate() 以 stw。实际上，<strong>SafepointSynchronize::begin() 方法内包括了准备进入安全点到所有 java 线程 Block 的过程，此时 Young</strong> <strong>GC</strong> <strong>的全局停顿开始了</strong>。因此，Young GC 是 stw 的。</p>
