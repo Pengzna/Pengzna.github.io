@@ -728,11 +728,11 @@
 </ol>
 <p>​      Java 进程内存占用 &#x3D; 堆内存 + 非堆内存（DirectMemory + Metaspace + … )</p>
 <ol>
-<li>由于 <a target="_blank" rel="noopener" href="https://apache-iotdb.feishu.cn/docx/BHqfdpjJtoTSXDxiPoNcLIjcnud#H1vOdt0f8osW2bxARIKcjCa5nDe">glibc 内存去配机制</a>，Java 实际占用内存会比理论上大些</li>
-<li>由于 <a target="_blank" rel="noopener" href="https://apache-iotdb.feishu.cn/docx/BHqfdpjJtoTSXDxiPoNcLIjcnud#VoCUdU9jOoaMAjxSY6tcGEd9nEf">glibc 内存分配机制</a>，Java 实际分配到的物理内存会比真实使用的内存大些</li>
+<li>由于 glibc 内存去配机制，Java 实际占用内存会比理论上大些</li>
+<li>由于 glibc 内存分配机制，Java 实际分配到的物理内存会比真实使用的内存大些</li>
 </ol>
-<h2 id="非堆内存如何管理？"><a href="#非堆内存如何管理？" class="headerlink" title="非堆内存如何管理？"></a>非堆内存如何管理？</h2><p>参考：<a target="_blank" rel="noopener" href="https://apache-iotdb.feishu.cn/docx/BHqfdpjJtoTSXDxiPoNcLIjcnud#CZukdWQr4oWP8xxgdZ4cHrkrnKh">Java 内存占用分类 &amp; 观测手段 调研</a> </p>
-<h2 id="堆内存如何管理？"><a href="#堆内存如何管理？" class="headerlink" title="堆内存如何管理？"></a>堆内存如何管理？</h2><p>参考：<a target="_blank" rel="noopener" href="https://apache-iotdb.feishu.cn/docx/BHqfdpjJtoTSXDxiPoNcLIjcnud#CZukdWQr4oWP8xxgdZ4cHrkrnKh">Java 内存占用分类 &amp; 观测手段 调研</a> </p>
+<h2 id="非堆内存如何管理？"><a href="#非堆内存如何管理？" class="headerlink" title="非堆内存如何管理？"></a>非堆内存如何管理？</h2><p>可参考前文</p>
+<h2 id="堆内存如何管理？"><a href="#堆内存如何管理？" class="headerlink" title="堆内存如何管理？"></a>堆内存如何管理？</h2><p>可参考前文</p>
 <h1 id="排查-Java-内存相关最佳实践"><a href="#排查-Java-内存相关最佳实践" class="headerlink" title="排查 Java 内存相关最佳实践"></a>排查 Java 内存相关最佳实践</h1><h2 id="如何排查-Java-应用在线上到底占用了多少内存？"><a href="#如何排查-Java-应用在线上到底占用了多少内存？" class="headerlink" title="如何排查 Java 应用在线上到底占用了多少内存？"></a>如何排查 Java 应用在线上到底占用了多少内存？</h2><ol>
 <li><strong>查看 IoTDB 占用的*物理内存</strong><ol>
 <li>top 等命令</li>
@@ -756,7 +756,7 @@
 <li>某些自定义的 native 代码造成了内存泄漏，对应第四步。</li>
 <li><code>DirectByteBuffer</code> 的问题，对应第三步。<ul>
 <li>这些对象实例可能是由应用程序显示的创建（例如通过某些第三方库）</li>
-<li>也可能是由 JDK 内部使用<code>HeapByteBuffer</code> 的 I&#x2F;O 线程自动创建和缓存在 threadlocal 里，如果创造了很多通过这样的线程， 并且每个线程使用的 buffer 很大，那么最终 Java 进程可能占用大量的堆外内存，看起来就像发生了内存泄漏一样（参考组内大佬的这篇问题排查：<a target="_blank" rel="noopener" href="https://apache-iotdb.feishu.cn/docs/doccnAmqruZ0BnFPB7oe5ZFt1Ef">2021-11-25 线上堆外内存泄漏问题排查</a> ）</li>
+<li>也可能是由 JDK 内部使用<code>HeapByteBuffer</code> 的 I&#x2F;O 线程自动创建和缓存在 threadlocal 里，如果创造了很多通过这样的线程， 并且每个线程使用的 buffer 很大，那么最终 Java 进程可能占用大量的堆外内存，看起来就像发生了内存泄漏一样</li>
 </ul>
 </li>
 <li>操作系统存在问题，对应第五步。<ul>

@@ -377,7 +377,7 @@
 </ul>
 <h5 id="7-HdrHistogram-和-DropWizard-优劣分析"><a href="#7-HdrHistogram-和-DropWizard-优劣分析" class="headerlink" title="7. HdrHistogram 和 DropWizard 优劣分析"></a>7. HdrHistogram 和 DropWizard 优劣分析</h5><ul>
 <li>写入速度：Hdr 远优于 DropWizard<ul>
-<li>正是因为 HdrHistogram 是静态分桶实现，所以写入友好（不需要淘汰旧数据），在<a target="_blank" rel="noopener" href="https://apache-iotdb.feishu.cn/docx/P5svdKZTxoVtqax0mgvcCeYInQe#OglwdZfPEoTKbmx11ywcLMS5nhf"> record</a> 性能测试中比 DropWizard 表现要好。</li>
+<li>正是因为 HdrHistogram 是静态分桶实现，所以写入友好（不需要淘汰旧数据），在 record 性能测试中比 DropWizard 表现要好。</li>
 <li>HdrHistogram 底层是数组，而 DropWizard 底层是跳表，数组肯定比跳表写入快。</li>
 <li>DropWizard 默认设置是每隔一段时间要 rescale 一下，而 rescale 是要锁写的。</li>
 </ul>
