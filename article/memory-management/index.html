@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="Pengzna,blog" />
+  <meta name="author" content="Pengzna" />
+  <meta name="description" content="Pengzna 的博客" />
+  
+  
+  <title>
+    
+      memory-management 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.0.0"><!-- hexo-inject:begin --><!-- hexo-inject:end --></head>
+
+
+  <body>
+    <!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="app">
+      <div class="header">
+  <a href="/">Pengzna's blog 👋</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/Pengzna">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="_blank" href="mailto:junzhi.pengzna@gmail.com">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="linkedin" target="_blank" href="https://www.linkedin.com/in/pengzna/">
+      <i class="iconfont icon-linkedin"></i>
+    </a>
+  
+    <a title="wechat" target="_blank" href="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20231115013033249.png">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Nov 05, 2024
+  </h3>
+  <h1>
+    memory-management
+  </h1>
+  <div class="content markdown-body">
+    <p>笔者在 2024 年有幸参与了 Apache HugeGraph 的内存管理工作，从 0 到 1 搭建了 Apache HugeGraph 对于 Query 的内存管控。</p>
+<p>对于一个 Java base 的系统，堆内存全部是由 JVM 以及 GC 进行管控。本项目的难点和亮点在于，在 JVM 的框架下对内存进行灵活的分配、去配以及监控管理，实现更加个性化、精细化的内存调控。</p>
+<p>具体来说，Apache HugeGraph 的 Query 链路可能有极大的负载，导致某些时间窗口内，内存使用压力极大。</p>
+<ul>
+<li>如果使用堆内存，依赖 JVM 进行管控的话极易因为 Full GC 造成不可控的 stw 从而影响所有链路的业务。<ul>
+<li>我们希望减少 Full GC 的影响，并且即使内存不足，也不要 stw 影响全部链路的业务。可以通过暂时 hang 某一条链路从而保证其他业务的正常进行。</li>
+</ul>
+</li>
+<li>使用 JVM 原生的内存管控框架无法实现细粒度的内存调控<ul>
+<li>我们希望对于各种细粒度的内存分配、去配都能白盒管理，并辅助对全局业务流进行调配，从而保证系统的稳步运行而不是卡死。</li>
+</ul>
+</li>
+</ul>
+<p>为了解决上述问题，我基于堆外内存、零拷贝序列化、树形层次式内存管理架构等角度提出了解决方案，并合入了 Apache HugeGraph 的主分支。</p>
+<p>本文档为中文版，原版文档可以参考：<a target="_blank" rel="noopener" href="https://github.com/apache/incubator-hugegraph/wiki/%5BMemory-Management%5D-GSoC-2024-Final-Report">https://github.com/apache/incubator-hugegraph/wiki/%5BMemory-Management%5D-GSoC-2024-Final-Report</a></p>
+<h2 id="Project-Overview"><a href="#Project-Overview" class="headerlink" title="Project Overview"></a>Project Overview</h2><p>To reduce request latency and response time jitter, the hugegraph-server graph query，engine has already used off-heap memory in most OLTP algorithms. However, at present, hugegraph cannot control memory based on a single request Query, so a Query may exhaust the memory of the entire process and cause OOM, or even cause the service to be unable to respond to other requests. Need to implement a memory management module based on a single Query.</p>
+<p>Key goals includes:</p>
+<ul>
+<li>Implement a <strong>unified memory manager</strong>, independently manage JVM off-heap memory, and adapt the memory allocation methods of various native collections, so that the memory mainly used by the algorithm comes from the unified memory pool, and it is returned to the memory pool after release.</li>
+<li>Each request corresponds to a unified memory manager, and the memory usage of a request can be controlled by counting the memory usage of a request.</li>
+<li>Complete related <strong>unit tests UT</strong> and basic documentation.</li>
+</ul>
+<h2 id="Feature-Implemented"><a href="#Feature-Implemented" class="headerlink" title="Feature Implemented"></a>Feature Implemented</h2><h3 id="Feature1-Hierarchical-Memory-Allocation"><a href="#Feature1-Hierarchical-Memory-Allocation" class="headerlink" title="Feature1: Hierarchical Memory Allocation"></a>Feature1: Hierarchical Memory Allocation</h3><h4 id="Design："><a href="#Design：" class="headerlink" title="Design："></a>Design：</h4><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20241030174412113.png" alt="image-20241030174412113"></p>
+<ul>
+<li><p>如上图所示，对于不同层次的执行组件，我们分配不同层次的 MemoryPool(MemoryContext)，分别对应管理。</p>
+<ul>
+<li><p><strong>每个</strong> <strong>Query</strong> 对应一个 <strong>QueryMemoryPool</strong></p>
+</li>
+<li><p>一个 Query 派生出的<strong>每个 Task（每个线程）</strong>，对应一个 <strong>TaskMemoryPool</strong></p>
+</li>
+<li><p>一个 Task 使用的<strong>每个 Operator（如 HG 中的各种迭代器）</strong>，对应一个 <strong>OperatorMemoryPool</strong></p>
+</li>
+<li><p>MemoryManager 管理所有的 MemoryPool</p>
+</li>
+<li><p><strong>生命周期相近</strong>的对象尽量放在一个 MemoryContext 里，访问的时候不跨物理内存，释放时一起释放</p>
+</li>
+</ul>
+</li>
+</ul>
+<p>通过这种方式，我们可以实现对每个查询任务的内存实际使用量的精细追踪，精确到运算符级别。这样，对于全局的内存使用和控制便能达到最佳效果。</p>
+<p>以上三种 MemoryPool 可以组成一个 MemoryPool<strong>Tree</strong>，根节点是 MemoryManager，叶子节点是 OperatorPool</p>
+<ul>
+<li><p>真正需要使用内存的是<strong>叶子节点</strong> <strong>OperatorPool</strong></p>
+</li>
+<li><p>上层的 TaskPool 和 QueryPool 本质上不申请使用内存，它们作为<strong>聚合池</strong>，把底层叶子节点的使用情况聚合起来。并且作为管理子池的生命周期。</p>
+</li>
+</ul>
+<p>内存池的<strong>生命周期</strong>：</p>
+<ul>
+<li><p>QueryMemoryPool：每个 query 请求入口处创建，如 http query 请求。query 结束时 release，并释放对应内存</p>
+</li>
+<li><p>TaskMemoryPool：每当 Submit 一个新线程任务时创建，如 Executor.submit(() -&gt; doSomething())。线程任务结束时 release，并释放对应内存</p>
+</li>
+<li><p>OperatorMemoryPool：每当创建一个 Iterator 时创建，不主动 release，只有当上层的 TaskMemoryPool release 时触发自己的释放。</p>
+</li>
+</ul>
+<h4 id="Effect："><a href="#Effect：" class="headerlink" title="Effect："></a>Effect：</h4><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20241031205631529.png" alt="image-20241031205631529"></p>
+<h3 id="Feature2：按需内存分配"><a href="#Feature2：按需内存分配" class="headerlink" title="Feature2：按需内存分配"></a>Feature2：按需内存分配</h3><h4 id="Design"><a href="#Design" class="headerlink" title="Design"></a>Design</h4><p>所有的内存分配请求都由叶子节点 OperatorPool 发起，向上传递使用量，<strong>自底向上</strong>传递到 QueryMemoryPool</p>
+<ol>
+<li>由 QueryMemoryPool 处统一消耗 MemoryManager 的内存。</li>
+<li>QueryMemoryPool 有容量限制，如果容量不够，会向 MemoryManager 申请内存</li>
+<li>先进行逻辑申请内存 requestMemory 操作，再进行真实物理分配 allocate。request 逻辑完成后，MemoryManager 和 Pool 中的各统计信息就会发生改变。</li>
+</ol>
+<p>如果 QueryMemoryPool 的内存足够，会返回分配结果，分配结果<strong>自顶向下</strong>逐层返回到叶子结点</p>
+<ol>
+<li><p>如果 QueryMemoryPool 的内存不够，会向根节点 MemoryManager 请求一次内存仲裁</p>
+</li>
+<li><p>每次分配的内存采用「预留」策略，借助量化机制，减少申请次数。如果申请的 size：</p>
+<ol>
+<li><p>&lt; 16MB，按照 1MB 的粒度向上取整</p>
+</li>
+<li><p>&lt; 64MB，按照 4MB 的粒度向上取整</p>
+</li>
+<li><p>&gt;&#x3D; 64MB，按照 8MB 的粒度向上取整</p>
+</li>
+</ol>
+</li>
+</ol>
+<p>在每个 MemoryPool 中，都有一个容量（capacity）的概念，即每个池的最大容量是多少，当前已申请的容量是多少，以及当前所有的叶子节点在根池中获取的保留容量是多少。</p>
+<ol>
+<li>例如，某个 leaf pool 需要申请新的内存，它将从绿色部分的容量中获取。若此容量不足，则需增长其容量以向右移。如果此时全局内存容量还是不够，会触发内存仲裁</li>
+</ol>
+<p>   <img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20241030174738768.png"></p>
+<p>   内存仲裁的主要职责是管理所有 query 的可用容量，并在查询间进行仲裁。</p>
+<ul>
+<li>决定将哪个查询，或查询中的哪个算子闲置的容量归还于该查询或算子</li>
+<li>又或是通过 spill 技术，将bi操作符中使用的容量，使用的状态数据进行溢出处理后，将溢出的容量还回给查询。</li>
+</ul>
+<p>一次内存仲裁是由某次内存分配请求触发的</p>
+<ul>
+<li>如果内存分配请求到达 QueryPool 时发现内存不足，MemoryManager 会触发一次内存仲裁</li>
+<li>内存仲裁<strong>本质上是一次内存回收，它将决定回收哪些查询的内存，以及怎么回收</strong></li>
+<li>假设已经选定了回收某个 Query 的内存，内存回收请求会<strong>自顶向下</strong>传递，直到叶子节点</li>
+</ul>
+<ol>
+<li>LocalArbitration</li>
+</ol>
+<p>假设 QueryA 的 OperatorA 触发了一次仲裁，Local 策略只会回收 QueryA 内部的其他 Operator 闲置内存。</p>
+<p>如 QueryA 下面的 OperatorA 需要内存，则会把 QueryA 内除了 OperatorA 的 free 内存都回收掉，分配给 OperatorA</p>
+<ol start="2">
+<li>GlobalArbitration</li>
+</ol>
+<p>假设 QueryA 触发了一次仲裁，Local 策略会尝试回收其他 Query 的闲置内存</p>
+<ul>
+<li>过程同上</li>
+<li>选择除了 QueryA 之外的某次 Query、比如 QueryB 进行回收<ul>
+<li>选择策略：Query 根据 free 内存大小进行排序，会选择 free 内存最大的 Query 进行回收</li>
+<li>默认回收策略：只回收 free 部分的内存</li>
+</ul>
+</li>
+</ul>
+<h3 id="Feature3：-并发安全与-OOM-Handle-Strategy"><a href="#Feature3：-并发安全与-OOM-Handle-Strategy" class="headerlink" title="Feature3： 并发安全与 OOM Handle Strategy"></a>Feature3： 并发安全与 OOM Handle Strategy</h3><h4 id="Design：-1"><a href="#Design：-1" class="headerlink" title="Design："></a>Design：</h4><p>如果某次 Operator 请求分配内存，<strong>经过一次内存仲裁之后仍然内存不够，抛出</strong> <strong>OOM</strong> <strong>异常（自己定制的），中断本次查询任务（Abort 自己）</strong>，释放所有内存。</p>
+<p><strong>要求：对于同一个 pool，内存仲裁、内存分配、内存去配三者都是串行，不允许两两并行。</strong></p>
+<ul>
+<li>内存仲裁时不允许分配或去配内存，因为内存仲裁的过程中要保证 Pool 的<strong>内存状态不可变</strong>。即内存仲裁时需要<strong>暂停</strong> <strong>Query</strong>（不允许分配内存、去配内存）<ul>
+<li>该“暂停”不需要真正的暂停，因为我们只需要内存状态不变即可，不需要执行状态不变。</li>
+<li>通过打标志位实现，发生仲裁后打上标记。</li>
+<li>该 pool 如果后续在申请内存、释放内存时发现打上了标记，会在 condition wait（如此能实现 query 任务“暂停”的效果）。直到仲裁结束后唤醒（signal）</li>
+</ul>
+</li>
+<li>申请内存时，和内存仲裁共享一把锁，以保证内存仲裁和内存分配是串行的（不会并发）</li>
+<li>内存池释放时，不允许和其他过程并发（分配、仲裁）<ul>
+<li>去配内存时，打上 closed 标记。不允许其他过程与 release 并发进行</li>
+</ul>
+</li>
+</ul>
+<h4 id="Effect：-1"><a href="#Effect：-1" class="headerlink" title="Effect："></a>Effect：</h4><p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20241031210033733.png" alt="image-20241031210033733"></p>
+<h3 id="Feature4：-核心数据结构堆外改造"><a href="#Feature4：-核心数据结构堆外改造" class="headerlink" title="Feature4： 核心数据结构堆外改造"></a>Feature4： 核心数据结构堆外改造</h3><h4 id="Design：-2"><a href="#Design：-2" class="headerlink" title="Design："></a>Design：</h4><p>   <strong>启发：</strong>观察了 dump 出来的文件，发现 90%以上的查询内存占用在：label、property、edge 和 vertex 上。查询过程的<strong>内存占用集中在少数、不可变、拥有大量实例的 class 上</strong></p>
+<p>   内容：不把数据结构对象全改造成堆外的，还是让数据结构对象保持在堆内，只把其中内存占用大、不可变的某些成员变量，比如 label（本质上是个 int）存在堆外，然后内存管理框架管理这部分堆外内存</p>
+<ul>
+<li>这些不可变的成员变量用堆外管理方便实现<strong>零拷贝读写</strong></li>
+</ul>
+<p><img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20241031210243918.png" alt="image-20241031210243918"></p>
+<ol>
+<li>找出所有可以改造的【内存占用大】且【不可变】对象，提供从堆外直接访问读取的 <strong>API</strong></li>
+</ol>
+<ul>
+<li>Object[]：主要内存占用来自于 HugeEdge 的 List，只要解决 HugeEdge 的改造即可</li>
+<li>HugeVertex：主要内存占用来自于 HugeEdge 的 List，只要解决 HugeEdge 的改造即可</li>
+<li>HugeEdge：<ul>
+<li>一部分来自于 id 的内存占用<ul>
+<li>IdGenerator.Id：已完成改造</li>
+</ul>
+</li>
+<li>一部分来自于 IntObjectMap，该部分为可变的，无法改造</li>
+</ul>
+</li>
+<li>label：本质上就是 Id，只要完成了 Id 的改造即可</li>
+<li>HugeProperty：本质上是 value，将 value 存到堆外即可</li>
+</ul>
+<p>   <strong>实现：</strong> <a target="_blank" rel="noopener" href="https://github.com/apache/incubator-hugegraph/pull/2649/files#diff-50dacfc16cd10c17e66ac7254d7464b9c43218cd3a63f0b9a8782b149222c357">https://github.com/apache/incubator-hugegraph/pull/2649/files#diff-50dacfc16cd10c17e66ac7254d7464b9c43218cd3a63f0b9a8782b149222c357</a></p>
+<ul>
+<li>实现了 Factory，使用 Factory 替换所有 new 上述对象的地方。</li>
+<li>Factory 的接口和原来 new 保持一致。</li>
+<li>Factory 内部根据用户设置的 memory_mode，选择构造原来的堆内版本对象还是构造堆外对象。</li>
+</ul>
+<h4 id="Effect：-2"><a href="#Effect：-2" class="headerlink" title="Effect：   "></a>Effect：   <img src="https://peng-img.oss-cn-shanghai.aliyuncs.com/markdown-img/image-20241030175040503.png" alt="image-20241030175040503"></h4>
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/article/raft-rocksdb-in-hg/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/article/Blog-building-log/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/Pengzna">Copyright © Pengzna 2021-present</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>First search, index file loading, please wait...<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>No result<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The search.xml file was not found, please refer to：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>The request failed, Try to refresh the page or try again later.<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  </body>
+</html>
